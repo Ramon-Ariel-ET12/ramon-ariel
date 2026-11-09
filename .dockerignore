@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv
+academia2026-tp
+var
+corrections
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.env
+*.log
+evaluacion/informe_retrieval.json

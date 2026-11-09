@@ -1,0 +1,24 @@
+# Plant simulator used only for local development and the official correction.
+/academia2026-tp/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local configuration and secrets
+.env
+!.env.example
+
+# Runtime data
+var/
+*.log
+
+# Correction runs
+corrections/
+
+# Packaging metadata
+*.egg-info/

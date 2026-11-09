@@ -1,0 +1,9 @@
+# Local validation overlay: reuse a previously built image with the baked models and
+# replace only the source code and the integration contract. Never used by the official build.
+FROM pia-asistente-cerebro:latest
+USER root
+COPY . /app
+RUN --mount=type=bind,from=contrato,target=/contrato \
+    cp -r /contrato /tmp/contrato-src && uv pip install --python /app/.venv/bin/python /tmp/contrato-src
+RUN chown -R appuser:appuser /app
+USER appuser

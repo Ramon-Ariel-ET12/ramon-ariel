@@ -1,0 +1,85 @@
+name: pia-asistente
+
+services:
+  cerebro:
+    image: pia-asistente-cerebro:latest
+    build:
+      context: .
+      additional_contexts:
+        contrato: ${PLANTA_CONTRATO_DIR:-.}
+    networks: [planta-lan]
+    labels:
+      academia.planta: pc
+    environment:
+      SISTEMA_NOMBRE: ${SISTEMA_NOMBRE:-Academia Novit}
+      MQTT_HOST: broker
+      MQTT_PORT: "1883"
+      PLANT_URL: http://sim:8100
+      LINK_CONTROL_URL: http://enlace:8081
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pia}:${POSTGRES_PASSWORD:-pia-local-dev}@db:5432/${POSTGRES_DB:-pia}
+      MEDIA_DIR: /data/media
+      CLOUD_SYNC_URL: http://nube-sync:8300
+      HTTP_PROXY: http://enlace:3128
+      HTTPS_PROXY: http://enlace:3128
+      NO_PROXY: broker,sim,localhost
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      ASR_MODEL: /models/faster-whisper-small
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - assistant-media:/data/media
+    ports:
+      - "${UI_PORT:-8200}:8200"
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "3"
+          memory: 6g
+    restart: unless-stopped
+
+  db:
+    image: pgvector/pgvector:pg16
+    networks: [planta-lan]
+    labels:
+      academia.planta: pc
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pia}
+      POSTGRES_USER: ${POSTGRES_USER:-pia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pia-local-dev}
+    volumes:
+      - assistant-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pia} -d ${POSTGRES_DB:-pia}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1536m
+    restart: unless-stopped
+
+  # Cloud-side replica. It is outside the plant PC and behind the link proxy, so it is
+  # never needed for local detection or safety alerts.
+  nube-sync:
+    build:
+      context: ./cloud
+    networks: [control]
+    ports:
+      - "${CLOUD_PORT:-8300}:8300"
+    restart: unless-stopped
+
+networks:
+  planta-lan:
+    external: true
+  control:
+    external: true
+    name: ${PLANTA_RED:-planta}-control
+
+volumes:
+  assistant-db:
+  assistant-media:
