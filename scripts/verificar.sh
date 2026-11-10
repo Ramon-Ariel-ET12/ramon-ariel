@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Full verification of Delivery 1, in the only order that works.
 #
-#   ./scripts/verificar.sh                 # everything
+#   ./scripts/verificar.sh                 # everything, stack left running for inspection
 #   ./scripts/verificar.sh --sin-corrector # skip the official run (reuse the last one)
 #   ./scripts/verificar.sh --sin-e2e       # skip the operator probe
+#   ./scripts/verificar.sh --cerrar        # stop and remove every container at the end
 #
 # Steps
 #   1. stop the development stack  (the official run and the dev stack both publish
@@ -27,10 +28,12 @@ mkdir -p "$SALIDA"
 
 CORRECTOR=1
 E2E=1
+CERRAR=0
 for arg in "$@"; do
     case "$arg" in
         --sin-corrector) CORRECTOR=0 ;;
         --sin-e2e) E2E=0 ;;
+        --cerrar) CERRAR=1 ;;
         *) echo "opción desconocida: $arg" >&2; exit 2 ;;
     esac
 done
@@ -109,6 +112,11 @@ if [ "$E2E" -eq 1 ]; then
         --items '[{"tag":"B-101","variable":"presion_descarga_local","valor":112,"unidad":"kg/cm2"}]' \
         --segundos 70 2>&1 | tee "$SALIDA/e2e.txt" | grep -E "TABLET|EVENTO|texto:|fila:|opciones|== " | head -20
     resultado "end-to-end" "${PIPESTATUS[0]}"
+fi
+
+if [ "$CERRAR" -eq 1 ]; then
+    paso "Cerrando contenedores"
+    "$ROOT/scripts/parar.sh"
 fi
 
 paso "Resumen"
