@@ -129,6 +129,9 @@ class Repository:
         return await self.db.fetch("SELECT * FROM events WHERE note_ids @> %s::jsonb",
                                    (Jsonb([note_id]),))
 
+    async def update_event_context(self, event_id: str, context: dict) -> None:
+        await self.db.execute("UPDATE events SET context = %s WHERE id = %s", (Jsonb(context), event_id))
+
     # ---------------------------------------------------------------- orders
 
     async def upsert_order(self, order_id: str, equipment: str, tasks: list[str], state: str,
@@ -175,6 +178,11 @@ class Repository:
             (tag, variable),
         )
         return row["event_id"] if row else None
+
+    async def sensor_episodes(self) -> list[dict]:
+        return await self.db.fetch(
+            "SELECT tag, variable, active, since, event_id FROM sensor_state WHERE active"
+        )
 
     async def set_sensor_event(self, tag: str, variable: str, event_id: str | None, since: datetime | None) -> None:
         await self.db.execute(
@@ -280,6 +288,26 @@ class Repository:
 
     async def rag_all(self) -> list[dict]:
         return await self.db.fetch("SELECT id, citation, doc, title, current, text FROM rag_chunks")
+
+    async def rag_refresh_metadata(self, chunks: list[dict]) -> None:
+        """Update derived metadata in place, without recomputing embeddings."""
+        if not chunks:
+            return
+        async with self.db.pool.connection() as conn:  # type: ignore[union-attr]
+            async with conn.cursor() as cur:
+                for chunk in chunks:
+                    await cur.execute(
+                        """UPDATE rag_chunks SET
+                             equipment = CASE WHEN %s::jsonb = '[]'::jsonb THEN equipment ELSE %s::jsonb END,
+                             manufacturer = CASE WHEN %s = '' THEN manufacturer ELSE %s END,
+                             section_key = CASE WHEN %s = '' THEN section_key ELSE %s END,
+                             current = %s
+                           WHERE id = %s""",
+                        (Jsonb(chunk.get("equipment", [])), Jsonb(chunk.get("equipment", [])),
+                         chunk.get("manufacturer", ""), chunk.get("manufacturer", ""),
+                         chunk.get("section_key", ""), chunk.get("section_key", ""),
+                         chunk.get("current", True), chunk["id"]),
+                    )
 
     # ---------------------------------------------------------------- console
 

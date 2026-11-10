@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     media_dir: Path = Field(ROOT / "var" / "media", alias="MEDIA_DIR")
     evaluation_dir: Path = Field(ROOT / "evaluacion", alias="EVALUATION_DIR")
 
-    note_timeout_s: float = Field(90.0, alias="NOTE_TIMEOUT_S")
+    note_timeout_s: float = Field(180.0, alias="NOTE_TIMEOUT_S")
     max_attempts: int = Field(6, alias="MAX_ATTEMPTS")
     max_note_steps: int = Field(8, alias="MAX_NOTE_STEPS")
     token_budget: int = Field(8000, alias="TOKEN_BUDGET")

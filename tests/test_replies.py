@@ -66,3 +66,43 @@ def test_equipment_answer(snapshot):
 def test_value_question_answer_is_read(snapshot):
     reading = read_reply("El filtro B está en kilos.", snapshot, "question_value")
     assert reading.tag == "F-201B"
+
+
+def test_correction_reaches_a_null_reading_instead_of_another_variable(snapshot, ts):
+    """NOTA-00014: the ASR dropped the discharge value; the correction must fill it and
+    leave the bearing temperature alone."""
+    draft = parse_transcript("La del medio está en 1610P SI de descarga. El rodamiento me dio 51 grados con la pistola.",
+                             snapshot, note_id="N", ts=ts)
+    assert draft.rows[0].value is None
+    reading = read_reply(
+        "No. La dos estaba en mil seiscientos diez psi, no en cincuenta y uno. "
+        "Te faltó la dos, que estaba en cincuenta y uno grados. Arreglá eso.", snapshot, "draft")
+    updated = apply_corrections(draft, reading.actions, snapshot)
+    by_variable = {row.variable: row for row in updated.rows}
+    assert (by_variable["presion_descarga_local"].value, by_variable["presion_descarga_local"].unit) == (
+        1610.0, "psi")
+    assert (by_variable["temperatura_rodamiento_ir"].value,
+            by_variable["temperatura_rodamiento_ir"].unit) == (51.0, "degC")
+
+
+def test_correction_fixes_a_wrong_discharge_reading(snapshot, ts):
+    """NOTA-00083: the operator corrects 580 psi to 1580 psi and adds the bearing."""
+    draft = parse_transcript("La dos está en 580 psi de descarga.", snapshot, note_id="N", ts=ts)
+    reading = read_reply(
+        "No. La dos estaba en mil quinientos ochenta psi, no en quinientos ochenta. "
+        "Te faltó la dos, que estaba en cincuenta y tres grados. Corregilo y te confirmo.",
+        snapshot, "draft")
+    updated = apply_corrections(draft, reading.actions, snapshot)
+    by_variable = {row.variable: row for row in updated.rows}
+    assert (by_variable["presion_descarga_local"].value, by_variable["presion_descarga_local"].unit) == (
+        1580.0, "psi")
+    assert by_variable["temperatura_rodamiento_ir"].value == 53.0
+
+
+def test_add_does_not_duplicate_a_variable_that_is_already_there(snapshot, ts):
+    draft = parse_transcript("La uno está en 112 kilos de descarga. El rodamiento me dio 51 grados con la pistola.",
+                             snapshot, note_id="N", ts=ts)
+    reading = read_reply("Te faltó la uno, que estaba en cincuenta y uno grados.", snapshot, "draft")
+    updated = apply_corrections(draft, reading.actions, snapshot)
+    temps = [row for row in updated.rows if row.variable == "temperatura_rodamiento_ir"]
+    assert len(temps) == 1 and temps[0].value == 51.0

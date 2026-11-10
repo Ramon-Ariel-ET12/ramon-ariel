@@ -56,6 +56,32 @@ def old_before_new(rows: list[dict], ks: int = 5) -> int:
     return sum(1 for row in rows if row.get(f"distractor@{ks}"))
 
 
+def official_evaluator():
+    """The course's evaluator, ``corpus.evaluar.evaluar``, when the plant repo is available.
+
+    The assignment asks for that exact call. The plant repository is not part of this
+    submission, so the path is resolved from ``PLANTA_REPO_DIR`` or the two usual
+    sibling locations; when it is missing the local ``evaluate`` (same methodology,
+    verified against it) is used and the report says so.
+    """
+    import os
+    import sys
+
+    bases: list[Path] = []
+    if os.environ.get("PLANTA_REPO_DIR"):
+        bases.append(Path(os.environ["PLANTA_REPO_DIR"]))
+    bases += [HERE.parent / "academia2026-tp", HERE.parent.parent / "academia2026-tp"]
+    for base in bases:
+        planta = base / "planta"
+        if (planta / "corpus" / "evaluar.py").exists():
+            if str(planta) not in sys.path:
+                sys.path.insert(0, str(planta))
+            from corpus.evaluar import evaluar as oficial
+
+            return oficial
+    return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--k", type=int, nargs="+", default=[1, 3, 5, 10])
@@ -71,18 +97,34 @@ def main() -> None:
     hybrid = HybridIndex(fragments, embedder)
     hybrid_eval = evaluate(hybrid.citations, suite, args.k)
 
+    # The required call: corpus.evaluar.evaluar(buscar, suite).
+    oficial = official_evaluator()
+    oficial_eval = oficial(hybrid.citations, suite, args.k) if oficial else None
+    if oficial_eval is not None:
+        # Hard guard: the two evaluators must agree, otherwise one of them is wrong.
+        for metric in ("hit@5", "recall@5", "mrr"):
+            left = round(hybrid_eval["total"][metric], 3)
+            right = round(oficial_eval["total"][metric], 3)
+            assert abs(left - right) <= 0.002, f"{metric}: local={left} oficial={right}"
+
     report = {
         "n_preguntas": len(suite),
+        "evaluador": ("corpus.evaluar.evaluar" if oficial_eval is not None
+                      else "evaluacion.retrieval_eval.evaluate (copia local; corpus.evaluar no disponible)"),
         "baseline_bm25": {"total": base_eval["total"], "rev_c_antes_que_d": old_before_new(base_eval["preguntas"])},
         "hibrido": {"total": hybrid_eval["total"], "por_tipo": hybrid_eval["por_tipo"],
                     "rev_c_antes_que_d": old_before_new(hybrid_eval["preguntas"])},
         "referencia_bm25_curso": {"hit@5": 0.85, "recall@5": 0.66, "rev_c_antes_que_d": "1 de cada 10"},
         "preguntas": [{"id": row["id"], "top": row["top"]} for row in hybrid_eval["preguntas"]],
     }
+    if oficial_eval is not None:
+        report["hibrido"]["total_corpus_evaluar"] = oficial_eval["total"]
     args.salida.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Preguntas: {report['n_preguntas']}")
+    print(f"Preguntas: {report['n_preguntas']} · evaluador: {report['evaluador']}")
     print("BM25 base:", json.dumps(report["baseline_bm25"]["total"], ensure_ascii=False))
     print("Hibrido:  ", json.dumps(report["hibrido"]["total"], ensure_ascii=False))
+    if oficial_eval is not None:
+        print("corpus.evaluar.evaluar:", json.dumps(oficial_eval["total"], ensure_ascii=False))
     print("Rev. C antes que D -> base:", report["baseline_bm25"]["rev_c_antes_que_d"],
           "| hibrido:", report["hibrido"]["rev_c_antes_que_d"])
     for kind, metrics in report["hibrido"]["por_tipo"].items():

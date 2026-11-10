@@ -89,20 +89,26 @@ uv run python scripts/benchmark_asr.py --dir academia2026-tp/datos/voces \
   --model var/models/faster-whisper-small
 ```
 
-| Métrica | Resultado |
+| Métrica | Resultado medido |
 |---|---|
 | Notas medidas | 102 (todas las voces del banco provisto) |
-| WER medio (palabras) | 0,251 (incluye dígitos vs. palabras: "112" contra "ciento doce") |
-| Aciertos de extracción sobre las 8 notas de `martes-tranquilo` | 8/8 exactas (TAG, valor y unidad) |
-| Latencia media / máxima | 1,86 s / 6,48 s por nota |
+| WER medio (palabras) | 0,252 (incluye dígitos vs. palabras: "112" contra "ciento doce") |
+| Latencia media / máxima en el host | 1,65 s / 2,35 s |
+| Latencia en la corrida oficial (contenedor, 3 CPU) | mediana 2,8 s; máx. 15,1 s en la primera nota (caché fría) |
 | Hardware | Desktop, CPU sin GPU, 12 hilos disponibles; contenedor limitado a 3 CPU |
 | RAM del proceso | ~1 GB |
+| Extracción en la corrida oficial archivada | 22/22 campos con TAG, valor y unidad correctos (`scripts/audit_escenario.py`) |
+| Extracción en la corrida `libre` de desarrollo (medida el 2026-11-10) | 11/15 campos (73,3 %) — `evaluacion/evaluar_parte.py` |
 
 ## 4. Consumo y latencia del RAG
 
 ```bash
 uv run python evaluacion/retrieval_eval.py
 ```
+
+La métrica se calcula con `corpus.evaluar.evaluar(buscar, suite)` del repo de la planta
+cuando está disponible (`PLANTA_REPO_DIR` o `academia2026-tp/planta`); si no, con la copia
+local, que da exactamente los mismos valores (hay una prueba que compara ambas).
 
 | Métrica | BM25 base (curso) | Este sistema |
 |---|---|---|
@@ -121,42 +127,38 @@ Costo: USD 0 (modelo local, sin API).
 
 ## 5. Tokens y costo del LLM local
 
-El camino evaluado no consume tokens de un LLM: la extracción es determinista. El
-modelo opcional se mide con:
+El camino evaluado no consume tokens de un LLM: la extracción es determinista y cada paso
+del pipeline se registra en `usage_log` (modelo, tokens, costo y latencia). En la corrida
+oficial quedó, por nota, `faster-whisper-small` con la latencia real del ASR y
+`deterministic/parse` con la del parser; tokens y costo son 0.
 
-```bash
-uv run python scripts/benchmark_llm.py \
-  --model var/models/qwen2.5-0.5b-instruct
-```
+El modelo opcional no se ejecutó en esta entrega y por eso **no se informan** sus tokens
+ni su latencia: no se inventan mediciones. Se activa con `LLM_ENABLED=true` y
+`docker compose build --build-arg DOWNLOAD_LLM=1 cerebro`; su salida JSON se valida con
+`extra="forbid"` y solo propone acciones de corrección (`set/add/remove/move/unit`), nunca
+una regla de aprobación ni la alerta de seguridad.
 
-| Tarea | Tokens de entrada | Tokens de salida | Latencia | Costo |
-|---|---|---|---|---|
-| Interpretar una respuesta libre | no ejecutado en la entrega | — | — | USD 0 (local) |
-
-El modelo no se hornea por defecto (`DOWNLOAD_LLM=0`) para no sumar ~1 GB al build de
-una ruta que no lo necesita. La ruta determinista cubre todas las respuestas del
-operador de la simulación; el LLM queda como mejora opcional y su medición se hace con
-el comando anterior.
-
-En la nube el costo sería 0 porque no se usan modelos pagos en esta entrega. El sistema
-registra igualmente tokens, latencia y costo por llamada en `usage_log`, y los muestra
-en la central (`/`).
+En la nube el costo es 0 porque no se usan modelos pagos en esta entrega.
 
 ## 6. Conclusión
 
-La corrida oficial de la primera entrega obtuvo **91,3 / 100 (APRUEBA)** en
-`martes-tranquilo` y `fuga-sin-enlace`, sin faltas eliminatorias, con alerta de
-seguridad, operación sin enlace y latido al 100 %. El detalle está en
-[`docs/RESULTADOS.md`](docs/RESULTADOS.md).
+La corrida oficial de la primera entrega cuyos artefactos están guardados obtuvo
+**91,3 / 100 (APRUEBA)**, sin faltas eliminatorias, con alerta de seguridad, operación sin
+enlace y latido al 100 %. Las corridas anteriores archivadas dieron 88,8 / 89,2 / 82,4 /
+73,5. La variación está en A2 y A3, porque el simulador elige una voz de operador distinta
+cada vez, el ASR local a veces pierde una cláusula y el operador virtual no confirma
+borradores sin valores. El detalle está en [`RESULTADOS.md`](docs/RESULTADOS.md) y la
+auditoría completa con la verificación independiente en
+[`DELIVERY_1_AUDIT.md`](docs/DELIVERY_1_AUDIT.md).
 
 La combinación elegida prioriza lo que la primera entrega mide: **disponibilidad local**
-y **determinismo**. `faster-whisper small` en int8 entra en la PC de planta y da texto
-suficiente para un vocabulario de campo acotado; el parser determinista convierte ese
-texto en filas verificables sin depender de la latencia ni de la variabilidad de un
-LLM. El modelo de lenguaje queda como una ayuda acotada y auditable para el lenguaje
-libre, no como el núcleo de las decisiones. El RAG usa un embedding multilingüe pequeño
-(384 dimensiones) que cabe en el presupuesto y permite comparar contra la línea de base
-BM25 con las mismas citas y metadatos.
+y **determinismo**. `faster-whisper small` en int8 entra en la PC de planta (WER 0,252 y
+1,65 s de latencia media en CPU) y da texto suficiente para un vocabulario de campo
+acotado; el parser determinista convierte ese texto en filas verificables sin depender de
+la latencia ni de la variabilidad de un LLM. El modelo de lenguaje queda como una ayuda
+acotada y auditable para el lenguaje libre, no como el núcleo de las decisiones. El RAG
+usa un embedding multilingüe pequeño (384 dimensiones) que cabe en el presupuesto y
+permite comparar contra la línea de base BM25 con las mismas citas y metadatos.
 
 Si la cátedra publica la lista cerrada de modelos, el reemplazo es directo:
 `ASR_MODEL`, `EMBEDDING_MODEL` y `LLM_MODEL` son variables de entorno y el contrato de

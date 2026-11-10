@@ -122,3 +122,26 @@ ASR_EXPECTED = [
 def test_parser_survives_asr_digit_and_verb_artifacts(text, expected, snapshot, ts):
     draft = parse_transcript(text, snapshot, note_id="N", ts=ts)
     assert rows(draft) == expected
+
+
+def test_unit_abbreviation_with_dots_does_not_split_the_clause(snapshot, ts):
+    """ASR writes "1600 p.c. de descarga". The dot belongs to the unit, not the sentence:
+    the reading must survive and the bare "la bomba" must come back as an ambiguity,
+    never as a silently dropped measurement."""
+    text = ("La 1 está en 112 kilogramos de descarga, el rodamiento, medio 59 grados con la pistola. "
+            "Ambient la bomba está en 1600 p.c. de descarga, el filto a medio 1,3 de")
+    draft = parse_transcript(text, snapshot, note_id="N", ts=ts)
+    assert ("B-101", "presion_descarga_local", 112.0, "kg/cm2") in rows(draft)
+    assert [item.kind for item in draft.ambiguities] == ["equipment"]
+    assert draft.ambiguities[0].candidates == ["B-101", "B-102", "B-103"]
+
+
+def test_stray_y_between_reading_and_variable_does_not_split_the_clause(snapshot, ts):
+    """NOTA-00011 run 2026-11-10: ASR wrote "1600 p.C. y de descarga". The extra "y"
+    used to cut the clause before "descarga", losing the reading and the question."""
+    text = ("Rauno Estar en 112 kg de descarga, el rodamiento medió 59° con la pistola, "
+            "Ambien la bomba está en 1600 p.C. y de descarga, el Filtro a medió 1,3 de diferencial")
+    draft = parse_transcript(text, snapshot, note_id="N", ts=ts)
+    assert ("F-201A", "presion_diferencial", 1.3, "kg/cm2") in rows(draft)
+    assert [item.kind for item in draft.ambiguities] == ["equipment"]
+    assert draft.ambiguities[0].candidates == ["B-101", "B-102", "B-103"]

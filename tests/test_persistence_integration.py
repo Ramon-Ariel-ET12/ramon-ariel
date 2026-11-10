@@ -22,6 +22,8 @@ async def test_repository_idempotency_and_queue():
     from datetime import datetime
 
     now = datetime.now(UTC)
+    # The test is repeatable: it removes its own row (parts cascade) before starting.
+    await db.execute("DELETE FROM notes WHERE id = %s", (note_id,))
     first = await repo.create_note(note_id, now, "tester", "rec", None, [], False)
     second = await repo.create_note(note_id, now, "tester", "rec", None, [], False)
     assert first is True and second is False

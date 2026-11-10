@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
 
 class EquipmentQuery(StrictModel):
@@ -68,7 +70,7 @@ class OrderHistory(StrictModel):
 
 
 class InventoryQuery(StrictModel):
-    almacen: str = Field(default="yacimiento")
+    almacen: Literal["yacimiento", "central"] = "yacimiento"
 
 
 class InventoryItem(StrictModel):
@@ -85,8 +87,8 @@ class Inventory(StrictModel):
 
 
 class StockQuery(StrictModel):
-    codigo: str
-    almacen: str = "yacimiento"
+    codigo: str = Field(min_length=2, max_length=40)
+    almacen: Literal["yacimiento", "central"] = "yacimiento"
 
 
 class StockItem(StrictModel):
@@ -114,14 +116,19 @@ class TaskCatalogQuery(StrictModel):
     equipo: str | None = None
 
 
+class PartUse(StrictModel):
+    codigo: str = Field(min_length=2, max_length=40)
+    cantidad: float = Field(default=0, ge=0)
+
+
 class TaskInfo(StrictModel):
     codigo: str
     nombre: str
     equipo: list[str] = Field(default_factory=list)
     detiene: bool
-    horas: float
+    horas: float = Field(ge=0)
     ejecutor: str
-    repuestos: list[dict] = Field(default_factory=list)
+    repuestos: list[PartUse] = Field(default_factory=list)
     estandar: bool
 
 

@@ -127,15 +127,20 @@ async def _dispatch_loop(ctx_: Context) -> None:
             if topic == "planta/recorridas":
                 await ctx_.workflow.enqueue(payload)
             elif topic == "planta/respuestas":
-                ctx_.workflow.on_reply(payload)
+                await ctx_.workflow.on_reply(payload)
             elif topic.startswith("planta/sensores/"):
                 tag = payload.get("tag")
                 variable = payload.get("variable")
                 if not tag or not variable:
                     continue
                 stamp = datetime.fromisoformat(payload["ts"])
-                event = ctx_.detector.feed(tag, variable, payload.get("valor"), stamp,
-                                           payload.get("calidad", "buena"))
+                event, episode = ctx_.detector.feed(tag, variable, payload.get("valor"), stamp,
+                                                    payload.get("calidad", "buena"))
+                if episode is not None:
+                    # Persisted on the transition only: the episode id survives a restart.
+                    await ctx_.repo.set_sensor_event(tag, variable,
+                                                     episode["event_id"] if episode["active"] else None,
+                                                     episode["since"])
                 if event:
                     await ctx_.workflow.handle_sensor_event(event, variable)
                 await _sensor_digest(ctx_, payload)
@@ -184,8 +189,17 @@ async def lifespan(app: FastAPI):
         log.error("mqtt not connected yet; continuing with reconnect")
     publisher = Publisher(mqtt, repo)
     llm = LocalLLM(settings.llm_model, enabled=settings.llm_enabled)
-    workflow = NoteWorkflow(settings, repo, plant, publisher, snapshot, materials, transcriber, llm)
+    from app.rag.search import ManualSearch
+
+    search = ManualSearch(repo, settings, snapshot)
+    workflow = NoteWorkflow(settings, repo, plant, publisher, snapshot, materials, transcriber, llm,
+                            search=search)
     detector = SensorDetector(snapshot)
+    # A restart in the middle of a sustained deviation must keep the same event id.
+    try:
+        detector.restore(await repo.sensor_episodes())
+    except Exception:  # noqa: BLE001
+        log.warning("sensor episodes could not be restored", exc_info=True)
     ctx = Context(settings, db, repo, plant, mqtt, publisher, materials, snapshot, transcriber,
                   workflow, detector)
     publisher.pending_hook = lambda: _heartbeat_once(ctx)

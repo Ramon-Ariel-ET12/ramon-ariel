@@ -11,7 +11,7 @@ from app.domain.equipment import EquipmentIndex, preprocess
 from app.domain.models import PlantSnapshot
 from app.domain.numbers import tokenize
 from app.persistence.repository import Repository
-from app.rag.bm25 import HybridIndex, metadata_weight, rrf
+from app.rag.bm25 import HybridIndex, expand_query, metadata_weight, rrf
 from app.rag.indexer import Embedder
 
 log = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class ManualSearch:
         return self._memory_index().search(query, k, tags)
 
     async def _search_db(self, query: str, k: int, tags: set[str]) -> list[dict]:
-        lexical_rows = await self.repo.rag_lexical(query, 40)
+        lexical_rows = await self.repo.rag_lexical(expand_query(query), 40)
         rankings = [[row["citation"] for row in lexical_rows]]
         rows_by_citation = {row["citation"]: row for row in lexical_rows}
         try:
@@ -67,7 +67,8 @@ class ManualSearch:
             row = rows_by_citation[citation]
             chunk = {"title": row.get("title", ""), "text": row.get("text", ""),
                      "current": row.get("current", True), "doc": row.get("doc", ""),
-                     "equipment": row.get("equipment") or []}
+                     "equipment": row.get("equipment") or [],
+                     "manufacturer": row.get("manufacturer") or ""}
             ranked.append((score * metadata_weight(chunk, query, tags), citation, row))
         ranked.sort(key=lambda item: item[0], reverse=True)
         return [

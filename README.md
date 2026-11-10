@@ -63,30 +63,42 @@ docker compose up -d --build
 
 ### 2. Instalar el contrato de integración
 
-El mecanismo documentado es:
+El contrato (`planta_contrato` 0.2.0) se instala **con pip durante el build**; no se
+copia en el repo. El build lo resuelve así:
+
+1. Si existe un contexto de build `contrato` (`PLANTA_CONTRATO_DIR`), lo instala desde
+   ahí: sirve para construir sin internet.
+2. Si no, lo instala desde la fuente pública que realmente publica el paquete:
 
 ```bash
-pip install "git+https://github.com/NovitSoftware/academia2026-planta#subdirectory=contrato"
+git+https://github.com/NovitSoftware/academia2026-tp#subdirectory=contrato
 ```
 
-En este entorno ese repositorio no está publicado (devuelve *Repository not found*).
-El build acepta el checkout local provisto como contexto, **sin copiar los modelos**:
+La URL que figura en el enunciado (`academia2026-planta`) devuelve 404; por eso el build
+no la usa. `docker compose build` funciona **sin variables de entorno**:
 
 ```bash
-export PLANTA_CONTRATO_DIR="$PWD/academia2026-tp/contrato"
+docker compose build                                                      # fuente pública
+PLANTA_CONTRATO_DIR="$PWD/academia2026-tp/contrato" docker compose build  # sin internet
 ```
 
 ### 3. Levantar el sistema
 
 ```bash
-PLANTA_CONTRATO_DIR="$PWD/academia2026-tp/contrato" docker compose up -d --build
+docker compose up -d --build
 ```
 
 - Central de mantenimiento / estado: <http://localhost:8200>
 - API de estado: <http://localhost:8200/api/state>
 - Salud: <http://localhost:8200/health>
 
-El compose usa `postgres` con pgvector, aplica el esquema al arrancar y deja el
+`planta-lan` es una red `internal` (sin salida a internet) y Docker no publica puertos de
+un contenedor que solo está en una red interna. Por eso hay un `panel` nginx mínimo que
+es el único ingreso desde el host hacia la UI: no ejecuta lógica de planta, no tiene
+estado y no lleva el label `academia.planta: pc` (el cerebro y la base sí). Contando
+también el panel, el conjunto suma **4,0 CPU y 7,6 GB**, dentro del límite de 4 CPU / 8 GB.
+
+El compose usa PostgreSQL 16 con pgvector, aplica el esquema al arrancar y deja el
 latido en `sistema/estado` cada 30 s.
 
 Para habilitar el LLM local opcional (no se hornea por defecto porque no está en el
@@ -126,8 +138,9 @@ eso el paso explícito. `uv.lock` fija el resto de las dependencias.
 | `EMBEDDING_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | embeddings RAG |
 | `LLM_ENABLED` | `false` | habilita el LLM local opcional para respuestas libres |
 | `LLM_MODEL` | `/models/qwen2.5-0.5b-instruct` | modelo local opcional |
-| `NOTE_TIMEOUT_S` | `90` | timeout global por nota |
-| `MAX_ATTEMPTS` | `6` | borradores por nota |
+| `NOTE_TIMEOUT_S` | `180` | timeout global por nota (cubre preguntas y reenvío) |
+| `MAX_ATTEMPTS` / `MAX_NOTE_STEPS` | `6` / `8` | borradores y pasos por nota |
+| `TOKEN_BUDGET` | `8000` | tokens de LLM por nota |
 | `HEARTBEAT_SECONDS` | `30` | latido |
 | `SYNC_BATCH_SIZE` | `50` | cola de nube |
 | `MEDIA_DIR` | `/data/media` | audio y fotos |
@@ -176,7 +189,7 @@ historial o manual.
 
 ### Herramientas y MCP
 
-Tools de solo lectura con Pydantic `extra="forbid"`, timeout y reintentos:
+Tools de solo lectura con Pydantic `extra="forbid", strict=True`, timeout y reintentos:
 equipos, historial de sensores, historial de órdenes, inventario, stock, lista de
 materiales, catálogo de tareas y búsqueda en manuales. También se exponen como tools
 de LangChain y por **MCP**:
@@ -228,38 +241,68 @@ histórico e idempotencia (integración con `TEST_DATABASE_URL`).
 
 ## Evaluación oficial
 
-Con la planta levantada y el contrato disponible:
+El corrector y el stack de desarrollo publican los mismos puertos (8200 y 8300). Si el
+sistema está levantado con `docker compose up`, la corrección falla en el arranque:
+
+```
+Bind for 0.0.0.0:8300 failed: port is already allocated
+```
+
+Hay que detenerlo antes y volver a levantarlo después:
 
 ```bash
-PLANTA_CONTRATO_DIR="$PWD/academia2026-tp/contrato" \
+docker compose stop                       # libera 8200 y 8300
 uv run --with httpx --with pyyaml python academia2026-tp/correccion/corregir.py \
   --repo . --alumno "Ramón Ariel" \
   --escenarios martes-tranquilo fuga-sin-enlace
+docker compose up -d                      # para el uso normal / las pruebas e2e
 ```
 
-El resultado queda en `academia2026-tp/correccion/corridas/academiaNovit2026/`
-(`informe.md`, `resultado.json`). Se evalúan A1–A4b, B1, B2, F1, F2 y las eliminatorias
-`sin_alerta_de_seguridad` y `sistema_mudo`.
+No hace falta ninguna variable de entorno: el build resuelve `planta_contrato` por sí
+mismo. El resultado queda en `academia2026-tp/correccion/corridas/academiaNovit2026/`
+(`informe.md`, `resultado.json`, un JSON por escenario). Se evalúan A1–A4b, B1, B2,
+E1–E3, F1, F2 y las eliminatorias `sin_alerta_de_seguridad` y `sistema_mudo`.
+
+Todo el proceso, en el orden correcto y con la evidencia en `var/audit/verificacion/`:
+
+```bash
+./scripts/verificar.sh                    # pruebas + lint + corrector + RAG + e2e
+./scripts/verificar.sh --sin-corrector    # reutiliza la última corrida oficial
+```
 
 ## Resultados medidos
 
-- **Evaluación oficial (`martes-tranquilo` + `fuga-sin-enlace`): 91,3 / 100 · APRUEBA,
-  sin faltas eliminatorias.** A1 100 %, A2 69 %, A3 69 %, A4a 100 %, A4b 100 %,
-  B1 100 %, B2 100 %, E1/E2/E3 100 %, F1/F2 100 %. Las notas no confirmadas son las que
-  no tienen ninguna fila con valor (solo "parada, en reserva" o la condición insegura);
-  el operador virtual no puede confirmarlas porque no hay valores que comparar.
+- **Evaluación oficial (`martes-tranquilo` + `fuga-sin-enlace`): 91,3 / 100 · APRUEBA** en la
+  corrida del **2026-11-10 15:26** con artefactos en
+  `academia2026-tp/correccion/corridas/academiaNovit2026/`, sin faltas eliminatorias.
+  A1, A4a, A4b, B1, B2, E1–E3 y F1–F2 dan 100 %; A2 y A3 (69 %) dependen de la voz que
+  elige el simulador y de que el operador virtual confirme borradores sin valores.
   Detalle: [`docs/RESULTADOS.md`](docs/RESULTADOS.md).
+- Verificación independiente de esa corrida (recálculo propio sobre el registro MQTT y la
+  verdad de campo): A1 13/13 notas con borrador, A3b 22/22 campos con TAG+valor+unidad
+  correctos, A4a 3/3 ambiguas preguntadas, A4b 9/9 claras sin pregunta, B1 22/22
+  clasificaciones, **alerta S1 en 20,0 s reales** (aviso de emergencia en la tablet a los
+  17,8 s), 0 alertas falsas, 0 eventos duplicados y 0 mensajes inválidos. Comando:
+  `scripts/audit_escenario.py`.
 - RAG: hit@5 0,873 / recall@5 0,718 contra BM25 0,859 / 0,674; Rev. C antes que D: 0
-  contra 6/71 (`evaluacion/informe_retrieval.json`).
-- ASR: 1,86 s de latencia media por nota y extracción exacta de las 8 notas de prueba
-  de `martes-tranquilo`.
-- Pruebas: 109 passed, 1 skipped.
+  contra 6/71. La evaluación se corre con `corpus.evaluar.evaluar(buscar, suite)` del
+  repo de la planta cuando está presente, y con la copia local equivalente cuando no.
+  Informe: `evaluacion/informe_retrieval.json`.
+- ASR: mediana 3,3 s por nota en la corrida; máximo 17,6 s en la primera nota de
+  `fuga-sin-enlace`, con el índice RAG construyéndose en paralelo sobre las mismas 3 CPU.
+- Pruebas: **166 pruebas, 0 fallos** con `TEST_DATABASE_URL` apuntando a la base del
+  compose (165 sin la de integración, que se saltea si la variable no está);
+  `ruff check .` limpio.
+- Auditoría de la entrega y prueba de punta a punta:
+  [`docs/DELIVERY_1_AUDIT.md`](docs/DELIVERY_1_AUDIT.md) y
+  [`docs/END_TO_END_TEST_REPORT.md`](docs/END_TO_END_TEST_REPORT.md).
 
 ## Limitaciones conocidas
 
-- La fuente git documentada de `planta_contrato` no está publicada; el build usa el
-  checkout provisto como contexto (`PLANTA_CONTRATO_DIR`). Sin ese contexto ni la
-  fuente git, el build falla explícitamente: no se copian ni reimplementan modelos.
+- El build instala `planta_contrato` 0.2.0 desde la fuente pública que realmente lo
+  publica (`academia2026-tp#subdirectory=contrato`); la URL del enunciado
+  (`academia2026-planta`) devuelve 404. Sin internet en el build hay que pasar
+  `PLANTA_CONTRATO_DIR` con el checkout provisto: no se copian ni reimplementan modelos.
 - La lista cerrada de modelos no fue provista; los modelos elegidos y sus versiones
   están en [`INFORME.md`](INFORME.md) y son configurables.
 - La extracción del parte es determinista por diseño (hardware y reproducibilidad);
@@ -271,5 +314,8 @@ El resultado queda en `academia2026-tp/correccion/corridas/academiaNovit2026/`
 - El ASR y los embeddings requieren descargar modelos en el build; en runtime no hay
   internet en la planta. El LLM local opcional solo se hornea con
   `DOWNLOAD_LLM=1`.
+- La detección de seguridad depende de la transcripción: el detector tolera las
+  variantes observadas del ASR ("olor agas", "agua, presión", "Ni compañero"), pero una
+  palabra completamente perdida puede requerir ampliar los patrones.
 - La confirmación por rango histórico se pide solo cuando el valor está fuera de la
   banda de la hoja de datos; un valor nuevo pero dentro de banda no se cuestiona.

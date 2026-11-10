@@ -22,13 +22,22 @@ def _normal(text: str | None) -> str:
     return " ".join((text or "").lower().split())
 
 
-def row_is_anomalous(row: ExtractedRow, snapshot: PlantSnapshot) -> bool:
+def row_is_anomalous(row: ExtractedRow, snapshot: PlantSnapshot,
+                     pump_states: dict[str, str] | None = None) -> bool:
     if row.variable in QUALITATIVE_ANOMALIES:
         return True
     if row.variable == "condicion_insegura":
         return True
     if row.variable == "estado":
-        return _normal(row.observation) not in NORMAL_STATES
+        observation = _normal(row.observation)
+        if observation in NORMAL_STATES:
+            return False
+        # A pump the operator reports as stopped is only an anomaly if the plant says it
+        # is running. The reserve pump is normally stopped, and the ASR sometimes loses
+        # the qualifier ("parada, en reserva" heard as "parada").
+        if observation == "parada" and pump_states and _normal(pump_states.get(row.tag)) == "parada":
+            return False
+        return True
     if row.variable == "nivel":
         return "rebals" in _normal(row.observation)
     if row.variable == "temperatura_rodamiento_ir":
@@ -54,15 +63,17 @@ def _outside(value: float, limit) -> bool:
     return False
 
 
-def tag_is_anomalous(rows: list[ExtractedRow], snapshot: PlantSnapshot) -> bool:
-    return any(row_is_anomalous(row, snapshot) for row in rows)
+def tag_is_anomalous(rows: list[ExtractedRow], snapshot: PlantSnapshot,
+                     pump_states: dict[str, str] | None = None) -> bool:
+    return any(row_is_anomalous(row, snapshot, pump_states) for row in rows)
 
 
 def event_id(note_id: str, tag: str | None, kind: str) -> str:
     return str(uuid.uuid5(NAMESPACE, f"part:{note_id}:{tag or 'PLANTA'}:{kind}"))
 
 
-def note_events(draft: PartDraft, snapshot: PlantSnapshot, ts: datetime) -> list[dict]:
+def note_events(draft: PartDraft, snapshot: PlantSnapshot, ts: datetime,
+                pump_states: dict[str, str] | None = None) -> list[dict]:
     """Build one event per equipment in the part (or a plant level event when empty)."""
     if draft.safety:
         tag = draft.rows[0].tag if draft.rows else None
@@ -95,7 +106,7 @@ def note_events(draft: PartDraft, snapshot: PlantSnapshot, ts: datetime) -> list
 
     events: list[dict] = []
     for tag, rows in by_tag.items():
-        anomalous = tag_is_anomalous(rows, snapshot)
+        anomalous = tag_is_anomalous(rows, snapshot, pump_states)
         kind = ESCALADO if anomalous else SIN_NOVEDAD
         if anomalous:
             details = ", ".join(

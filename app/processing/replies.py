@@ -145,6 +145,38 @@ def _infer_variable(tag: str, unit: str | None, snapshot: PlantSnapshot) -> str:
     return "observacion"
 
 
+def _set_target(rows: list[ExtractedRow], tag: str, unit: str | None, wrong: float | None,
+                snapshot: PlantSnapshot) -> ExtractedRow:
+    """Find the row a ``set`` correction refers to, creating it when it is missing.
+
+    The unit names the variable (``psi`` in a pump is the discharge gauge, ``grados``
+    is the bearing temperature). Using it prevents a correction from landing on a
+    different row of the same equipment, and it also reaches a row whose value is
+    ``null`` because the ASR lost the reading.
+    """
+    said = _infer_variable(tag, unit, snapshot) if unit else None
+    if said and said != "observacion":
+        for row in rows:
+            if row.tag == tag and row.variable == said:
+                return row
+        created = ExtractedRow(tag=tag, variable=said, value=None, unit=None,
+                               observation="corregido por el operador")
+        rows.append(created)
+        return created
+    # No usable unit: fall back to the wrong reading the operator quoted, then to the
+    # only valued row of that equipment.
+    valued = [row for row in rows if row.tag == tag and row.value is not None]
+    if wrong is not None and valued:
+        valued.sort(key=lambda row: abs(float(row.value or 0) - float(wrong)))
+        return valued[0]
+    if len(valued) == 1:
+        return valued[0]
+    created = ExtractedRow(tag=tag, variable="observacion", value=None, unit=None,
+                           observation="corregido por el operador")
+    rows.append(created)
+    return created
+
+
 def apply_corrections(draft: PartDraft, actions: list[dict], snapshot: PlantSnapshot) -> PartDraft:
     rows = [row.model_copy(deep=True) for row in draft.rows]
     for action in actions:
@@ -154,9 +186,25 @@ def apply_corrections(draft: PartDraft, actions: list[dict], snapshot: PlantSnap
             rows = [row for row in rows if row.tag != tag]
         elif kind == "add" and tag:
             variable = _infer_variable(tag, action.get("unit"), snapshot)
-            rows.append(ExtractedRow(tag=tag, variable=variable, value=action.get("value"),
-                                     unit=action.get("unit") if action.get("value") is not None else None,
-                                     observation="corregido por el operador"))
+            value = action.get("value")
+            unit = action.get("unit")
+            existing = next((row for row in rows if row.tag == tag and row.variable == variable), None)
+            if existing is not None:
+                # "Te faltó X" may name a row the draft already has (the first draft was
+                # right or a previous attempt added it): never duplicate the row, and do
+                # not touch it when the value is already the one the operator said.
+                if value is not None and existing.value != value:
+                    existing.value = value
+                    if unit is not None:
+                        existing.unit = unit
+                    if not existing.observation:
+                        existing.observation = "corregido por el operador"
+                elif unit is not None and existing.value is not None and existing.unit != unit:
+                    existing.unit = unit
+            else:
+                rows.append(ExtractedRow(tag=tag, variable=variable, value=value,
+                                         unit=unit if value is not None else None,
+                                         observation="corregido por el operador"))
         elif kind == "move" and action.get("to"):
             target_tag = action["to"]
             value = action.get("value")
@@ -173,20 +221,11 @@ def apply_corrections(draft: PartDraft, actions: list[dict], snapshot: PlantSnap
             value = action.get("value")
             unit = action.get("unit")
             wrong = action.get("wrong")
-            candidates = [row for row in rows if row.tag == tag and row.value is not None]
-            if wrong is not None and candidates:
-                candidates.sort(key=lambda row: abs(float(row.value or 0) - float(wrong)))
-            if not candidates:
-                variable = _infer_variable(tag, unit, snapshot)
-                rows.append(ExtractedRow(tag=tag, variable=variable, value=value,
-                                         unit=unit if value is not None else None,
-                                         observation="corregido por el operador"))
-            else:
-                row = candidates[0]
-                if value is not None:
-                    row.value = value
-                if unit is not None:
-                    row.unit = unit
+            row = _set_target(rows, tag, unit, wrong, snapshot)
+            if value is not None:
+                row.value = value
+            if unit is not None:
+                row.unit = unit
         elif kind == "set_unknown":
             for row in rows:
                 if row.value is not None and action.get("value") is not None and abs(row.value - action["value"]) <= 1.0:

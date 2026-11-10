@@ -18,22 +18,33 @@ S4 = "S4"
 
 _SAFETY_PATTERNS: dict[str, list[str]] = {
     S1: [
-        r"agua a presion",
+        r"agua (a )?presion",
         r"chorro de agua",
         r"proyeccion de agua",
-        r"sale agua (a presion|para todos lados)",
+        r"sale agua (a presion|para todos lados|con fuerza)",
+        r"agua para todos lados",
         r"nube de agua",
         r"rompio (algo )?(en|la) (la )?descarga",
-        r"fuga (de agua )?a presion",
+        r"fuga (de agua )?(a )?presion",
         r"revento (la|el) (descarga|niple|linea)",
+        # A ruptured fitting is a pressurised-water projection even when the operator
+        # does not add "sale agua a presion". An ASR may drop that half of the sentence.
+        r"se (rompio|corto|salio|aflojo) (el|la|un) (niple|brida|caño|cano|linea|union|acople|codo)",
+        r"(rompio|revento) (el|la) (niple|brida|caño|cano|union|codo)",
+        r"pierde agua (a presion|para todos lados)",
     ],
-    S2: [r"olor a gas", r"olor fuerte a gas", r"hay gas", r"fuga de gas"],
+    # The ASR usually glues "a gas" into "agas" ("olor agas"); the pattern accepts both.
+    S2: [r"olor\s*(a\s*)?g[ae]s", r"huele\s*(a\s*)?gas\b", r"hay gas", r"fuga de gas",
+         r"perdida de gas", r"escape de gas", r"detecto gas", r"se siente gas"],
     S3: [
         r"\bhumo\b",
         r"\bfuego\b",
-        r"olor a quemado",
+        r"olor (a )?quemado",
         r"se (esta )?quemando",
         r"se incendia",
+        r"se (prendio|prendió) fuego",
+        r"prendido fuego",
+        r"esta ardiendo",
         r"chispas?",
     ],
     S4: [
@@ -45,20 +56,35 @@ _SAFETY_PATTERNS: dict[str, list[str]] = {
         r"herida",
         r"lesionado",
         r"se corto (la|el) mano",
+        r"se lastimo",
+        r"inconsciente",
+        r"se desmayo",
+        r"(el|un|mi) (compañero|companero|operador|tecnico) no responde",
     ],
 }
 
 _NEGATIONS = ("no hay", "no se ve", "no huele", "sin olor", "sin humo", "sin fuego", "no sale", "no tiene", "para nada")
+_NEGATION_TAIL = re.compile(r"\b(sin|ni)\s+$")
+
+
+def _plain(text: str) -> str:
+    """Punctuation-insensitive text: the ASR writes "sale agua, presión" with stray commas."""
+    normal = normalize_text(text)
+    normal = re.sub(r"[.,;:!?¡¿\"'()\[\]]", " ", normal)
+    return re.sub(r"\s+", " ", normal).strip()
 
 
 def _negated(text: str, match: re.Match[str]) -> bool:
     window = text[max(0, match.start() - 28):match.start()]
-    return any(negation in window for negation in _NEGATIONS)
+    if any(negation in window for negation in _NEGATIONS):
+        return True
+    # "sin humo ni fuego": the negation is the single word in front of the match.
+    return bool(_NEGATION_TAIL.search(window))
 
 
 def detect_safety(transcript: str) -> tuple[str | None, str | None]:
     """Return (code, evidence) for the first unsafe condition, or (None, None)."""
-    text = normalize_text(transcript)
+    text = _plain(transcript)
     for code, patterns in _SAFETY_PATTERNS.items():
         for pattern in patterns:
             for match in re.finditer(pattern, text):

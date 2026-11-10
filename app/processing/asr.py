@@ -65,7 +65,7 @@ class Transcriber:
                 handle.writeframes(b"\x00\x00" * 8000)
         self.transcribe(silent)
 
-    def transcribe(self, path: Path | str) -> Transcription:
+    def transcribe(self, path: Path | str, on_partial=None) -> Transcription:
         self.load()
         assert self._model is not None
         started = time.perf_counter()
@@ -77,7 +77,20 @@ class Transcriber:
             initial_prompt=DOMAIN_PROMPT,
             condition_on_previous_text=False,
         )
-        text = " ".join(segment.text.strip() for segment in segments).strip()
+        # The generator yields each segment as it is decoded: handing the partial text to
+        # the caller lets the safety detector fire before the whole audio is finished.
+        parts: list[str] = []
+        for segment in segments:
+            cleaned = segment.text.strip()
+            if not cleaned:
+                continue
+            parts.append(cleaned)
+            if on_partial is not None:
+                try:
+                    on_partial(" ".join(parts))
+                except Exception:  # noqa: BLE001
+                    log.warning("partial transcript callback failed", exc_info=True)
+        text = " ".join(parts).strip()
         latency = int((time.perf_counter() - started) * 1000)
         return Transcription(text=text, duration_s=float(getattr(info, "duration", 0.0)),
                              latency_ms=latency, model=self.model_name)

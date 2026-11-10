@@ -4,24 +4,21 @@ Corrida ejecutada con la planta en modo corrección y el sistema levantado desde
 `docker-compose.yml` del repo:
 
 ```bash
-PLANTA_CONTRATO_DIR="$PWD/academia2026-tp/contrato" \
-.venv/bin/python academia2026-tp/correccion/corregir.py \
+uv run --with httpx --with pyyaml python academia2026-tp/correccion/corregir.py \
   --repo . --alumno "Ramón Ariel" \
-  --escenarios martes-tranquilo fuga-sin-enlace \
-  --sin-construir --salida "$PWD/var/corrida6"
+  --escenarios martes-tranquilo fuga-sin-enlace
 ```
 
-`--sin-construir` reutiliza la imagen ya construida con los modelos horneados (el
-`Dockerfile` del repo es el que la construye). La corrida completa queda en
-`var/corrida6/` (`informe.md`, `resultado.json`, un JSON por escenario y los logs).
+Es el comando canónico del corrector, sin `--sin-construir` y **sin variables de
+entorno**: el build del sistema resuelve `planta_contrato` por sí mismo. La corrida del
+**2026-11-10 15:26** queda en `academia2026-tp/correccion/corridas/academiaNovit2026/`
+(`informe.md`, `resultado.json`, un JSON por escenario y los logs).
 
 ## Nota
 
-**91,3 / 100 · APRUEBA** (mínimo 60). **Sin faltas eliminatorias.**
-
-Se midieron 63 de 93 puntos: los escenarios `martes-tranquilo` y `fuga-sin-enlace` no
-tienen fallas de equipo ni cierres, por lo que D1, D2, F3 y G1 no aplican y la nota se
-reescala. `sin_alerta_de_seguridad` y `sistema_mudo` no se dispararon.
+**91,3 / 100 · APRUEBA** (mínimo 60). **Sin faltas eliminatorias.** 57,5 puntos sobre
+63 medidos; D1/D2/F3/G1 no aplican porque estos dos escenarios no tienen fallas de equipo
+ni cierres, y la nota se reescala.
 
 | Criterio | Peso | Valor | Puntos |
 |---|---:|---:|---:|
@@ -38,63 +35,82 @@ reescala. `sin_alerta_de_seguridad` y `sistema_mudo` no se dispararon.
 | F1 Mensajes válidos | 2 | 100 % | 2,00 |
 | F2 Latido | 1 | 100 % | 1,00 |
 
+Corridas anteriores archivadas: 88,8 / 89,2 / 82,4 / 73,5. La variación entre corridas
+viene del simulador: elige una voz de operador distinta cada vez y el ASR local
+transcribe distinto.
+
 ## Lectura de los resultados
 
 ### Parte por voz (A)
 
-- **A1 100 %**: todas las notas del operador tuvieron una pantalla de tablet. Incluye
-  las notas que solo traen observaciones: se muestra un borrador informativo con filas
-  sin valor y la pregunta de equipo cuando el operador dijo "la bomba".
-- **A2/A3 69 %**: en `martes-tranquilo` se confirmaron 8 de 9 notas y en
-  `fuga-sin-enlace` 2 de 4. Las tres notas no confirmables son:
-  - `NOTA-00008` y `NOTA-00006`: solo dicen "está parada, en reserva"; no tienen ninguna
-    fila con valor. El operador virtual solo emite `confirmo` cuando compara filas con
-    valor; no hay nada que comparar.
-  - `NOTA-00001`: es la condición insegura S1; su único ítem tiene `valor = null`.
-  El sistema muestra el borrador y registra el parte; el límite es del mecanismo de
-  confirmación del simulador, no del flujo. El resto de las notas se confirmó, incluidas
-  las que necesitaron corrección de valores ocultos (goteo) o de unidades.
-- **A4a/A4b 100 %**: se preguntó en las notas ambiguas y no se preguntó de más en las
-  claras. El ajuste clave fue distinguir una ambigüedad explícita ("la bomba") de una
-  cláusula donde el ASR perdió el nombre del equipo.
+- **A1 100 %**: las 13 notas del operador tuvieron pantalla de tablet. Incluye las notas
+  que solo traen observaciones (borrador informativo con filas sin valor) y las ambiguas.
+- **A2 69 % / A3 69 %**: en `martes-tranquilo` se confirmaron 8 de 9 notas al primer
+  borrador y 8 de 9 al final; en `fuga-sin-enlace`, 2 de 4. Las notas no confirmables son
+  del mecanismo del operador virtual, no del flujo:
+  - `NOTA-00008` y `NOTA-00006` dicen solo “la bomba está parada, en reserva”: el sistema
+    pregunta el equipo y manda un borrador con una fila **sin valor**; el operador virtual
+    solo confirma cuando puede comparar valores.
+  - `NOTA-00001` es la condición insegura S1: la respuesta correcta es la alerta, no un
+    borrador que se confirma.
+- **A4a 100 %**: se preguntó en las tres notas ambiguas (`NOTA-00008` y `NOTA-00011` en
+  `martes-tranquilo`, `NOTA-00006` en `fuga-sin-enlace`). El caso `NOTA-00011` se recuperó
+  con dos correcciones del parser: el punto de la abreviatura (`1600 p.c.`) y la “y”
+  espuria entre la lectura y la variable (`1600 p.c. y de descarga`) ya no cortan la
+  cláusula, así que la lectura sobrevive y “la bomba” vuelve como pregunta.
+- **A4b 100 %**: ninguna nota clara recibió preguntas de más.
+- **Aciertos por campo**: 22 de 22 lecturas con TAG, valor y unidad correctos
+  (`scripts/audit_escenario.py`), incluidas las notas que necesitaron corrección.
 
 ### Detección (B)
 
 - **B1 100 %**: una decisión por equipo y nota, `SinNovedad` en todos los casos de estos
-  escenarios; el pico aislado y "parada, en reserva" no escalaron.
-- **B2 100 %**: la alerta S1 salió en menos de 30 s reales, con aviso en la tablet y
-  `espera_respuesta: false`. La corrida no registró falsas alarmas.
+  escenarios; el pico aislado y “parada, en reserva” no escalaron.
+- **B2 100 %**: la alerta S1 salió **20,0 s** después de la nota y el aviso de emergencia
+  en la tablet a los **17,8 s**, con `espera_respuesta: false` y **sin falsas alarmas**.
+  La alerta se publica desde la transcripción parcial: el primer segmento que nombra un
+  disparador no espera al audio completo.
 
 ### Sin enlace (E)
 
 - **E1 100 %**: las notas durante el corte tuvieron respuesta en la tablet dentro de la
-  ventana del corte. El aviso "Nota recibida. Procesando..." se publica al recibir la
-  nota y mantiene el reloj de la planta en modo lento mientras corre el ASR local.
-- **E2 100 %**: durante el corte el latido informó `enlace_ok=false` con pendientes > 0
-  y volvió a cero con el enlace restablecido.
+  ventana del corte.
+- **E2 100 %**: durante el corte el latido informó `enlace_ok=false` con pendientes > 0 y
+  volvió a cero con el enlace restablecido.
 - **E3 100 %**: sin eventos ni órdenes duplicadas.
 
 ### Robustez (F)
 
-- **F1 100 %**: 76 mensajes publicados en `martes-tranquilo` y 23 en `fuga-sin-enlace`,
+- **F1 100 %**: 76 mensajes publicados en `martes-tranquilo` y 42 en `fuga-sin-enlace`,
   todos válidos contra `planta_contrato`.
-- **F2 100 %**: latido regular cada 30 s, sin huecos.
+- **F2 100 %**: latido regular cada 30 s, sin huecos (28 y 24 latidos).
 
 ### Lo que estos escenarios no ejercitan
 
 `martes-tranquilo` y `fuga-sin-enlace` no tienen fallas de equipo, cortes de luz ni
-cierres. Por eso D1, D2, F3 y G1 quedan "sin datos" en la corrida. Están implementados y
+cierres. Por eso D1, D2, F3 y G1 quedan “sin datos” en la corrida. Están implementados y
 cubiertos por pruebas unitarias (`tests/test_rules_orders.py`, `tests/test_sync_history.py`,
 `tests/test_events_sensors.py`); una corrida con `tormenta-perfecta`, `sin-luz` o
 `contratista` los ejercita de punta a punta.
 
 ## Evaluaciones complementarias
 
-- **ASR local**: 102 notas del banco, WER 0,251 (incluye dígitos vs. palabras), latencia
-  media 1,86 s y máxima 6,48 s; extracción exacta de las 8 notas de `martes-tranquilo`
-  (incluidas las variantes con dígitos "09", "1,3" y el verbo "medió").
+- **Verificación independiente de la corrida**: `scripts/audit_escenario.py` recalcula los
+  criterios desde el registro MQTT y la verdad de campo, sin usar el puntuador oficial.
+  Resultado: A1 13/13 notas con borrador, A2 10/13, A3 10/13, A3b 22/22 campos con
+  TAG+valor+unidad, A4a 3/3, A4b 9/9, B1 22/22, alerta S1 en 20,0 s reales,
+  0 alertas falsas, 0 duplicados, 0 mensajes inválidos.
+- **ASR local**: mediana 3,3 s por nota en esta corrida; máximo 17,6 s en la primera nota
+  de `fuga-sin-enlace`, con el índice RAG construyéndose en paralelo sobre las mismas
+  3 CPU. Ese máximo es el que fija la latencia de la alerta S1.
 - **RAG**: hit@5 0,873 / recall@5 0,718 / MRR 0,678 contra BM25 0,859 / 0,674 / 0,581;
-  distractor@5 (Rev. C antes que D) 0 contra 6 de 71. Informe:
-  `evaluacion/informe_retrieval.json`.
-- **Pruebas**: 109 passed, 1 skipped (`uv run pytest -q`). El skip es la prueba de
-  integración de Postgres, que requiere `TEST_DATABASE_URL`.
+  distractor@5 (Rev. C antes que D) 0 contra 6 de 71. Medido con
+  `corpus.evaluar.evaluar(buscar, suite)`; los dos evaluadores coinciden al milésimo.
+  Informe: `evaluacion/informe_retrieval.json`.
+- **Pruebas**: 166 pruebas, 0 fallos con `TEST_DATABASE_URL` apuntando a la base del
+  compose (165 sin la de integración, que se saltea si la variable no está); `ruff check .`
+  limpio.
+- **Punta a punta con el operador virtual**: 9 flujos (inspección normal, ambigüedad,
+  unidades, corrección por voz, pico vs. desvío sostenido, S1–S4 incluyendo sin enlace,
+  operación sin enlace, reinicio y notas `VIVO-`). Detalle en
+  [`END_TO_END_TEST_REPORT.md`](END_TO_END_TEST_REPORT.md).

@@ -11,7 +11,7 @@ from datetime import datetime
 
 from app.domain.equipment import EquipmentIndex, preprocess
 from app.domain.models import Ambiguity, ExtractedRow, PartDraft, PlantSnapshot
-from app.domain.numbers import parse_numbers, tokenize
+from app.domain.numbers import NUMBER_WORDS, parse_numbers, tokenize
 from app.domain.safety import detect_safety
 from app.domain.units import detect_unit, to_kg
 
@@ -47,7 +47,19 @@ def _is_number_connector(tokens: list[str], index: int) -> bool:
     if nxt == "medio":
         return True
     prev = tokens[index - 1] if index > 0 else ""
-    return prev in TENS_WORDS and nxt in UNIT_WORDS
+    if prev in TENS_WORDS and nxt in UNIT_WORDS:
+        return True
+    if nxt in ("de", "del"):
+        # "1600 p.c. y de descarga": the ASR inserts an extra "y" between the reading
+        # and the variable. Splitting there loses the measurement (and the equipment
+        # mention with it), so keep the clause together after a number or a unit.
+        before = tokens[max(0, index - 2):index]
+        return any(_reads_as_number(token) for token in before)
+    return False
+
+
+def _reads_as_number(token: str) -> bool:
+    return bool(token) and (token[0].isdigit() or token in NUMBER_WORDS)
 
 
 def detect_variable(text: str) -> str | None:
@@ -346,10 +358,26 @@ def parse_transcript(
     for leftover in photos[photo_cursor:]:
         if last_row is not None and rows[last_row].photo is None:
             rows[last_row].photo = leftover
-        elif last_row is not None:
-            draft.photos.append(leftover)
 
     draft.rows = rows
+    # If the whole note produced no rows and no ambiguity, but it does contain a
+    # measurement, the ASR probably lost the equipment name. Ask which equipment it
+    # was instead of silently dropping the reading. (When another clause already
+    # resolved an equipment, we do not guess: the correction loop handles it.)
+    if not rows and not draft.ambiguities:
+        for clause in split_clauses(tokens):
+            clause_text = " ".join(clause)
+            variable = detect_variable(clause_text)
+            if variable is None:
+                continue
+            masked = index.mask(clause, index.find_mentions(clause)) if index.find_mentions(clause) else clause
+            numbers = parse_numbers(masked) if variable in QUANTITATIVE else []
+            if not numbers:
+                continue
+            family = index.family_for(variable)
+            if family:
+                draft.ambiguities.append(Ambiguity(kind="equipment", candidates=family, clause=clause_text))
+                break
     return draft
 
 

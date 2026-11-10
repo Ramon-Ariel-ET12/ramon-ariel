@@ -9,6 +9,6 @@ if [ -d "$SOURCE/planta_contrato" ]; then
     echo "Instalando planta_contrato desde $SOURCE"
     uv pip install "$SOURCE"
 else
-    echo "Instalando planta_contrato desde la fuente documentada"
-    uv pip install "git+https://github.com/NovitSoftware/academia2026-planta#subdirectory=contrato"
+    echo "Instalando planta_contrato desde la fuente pública"
+    uv pip install "git+https://github.com/NovitSoftware/academia2026-tp#subdirectory=contrato"
 fi

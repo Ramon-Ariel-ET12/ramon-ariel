@@ -1,5 +1,6 @@
 {
   "n_preguntas": 71,
+  "evaluador": "corpus.evaluar.evaluar",
   "baseline_bm25": {
     "total": {
       "mrr": 0.581,
@@ -124,7 +125,22 @@
         "recall@10": 1.0
       }
     },
-    "rev_c_antes_que_d": 0
+    "rev_c_antes_que_d": 0,
+    "total_corpus_evaluar": {
+      "mrr": 0.678,
+      "hit@1": 0.549,
+      "recall@1": 0.373,
+      "distractor@1": 0.0,
+      "hit@3": 0.775,
+      "recall@3": 0.563,
+      "distractor@3": 0.0,
+      "hit@5": 0.873,
+      "recall@5": 0.718,
+      "distractor@5": 0.0,
+      "hit@10": 0.915,
+      "recall@10": 0.786,
+      "distractor@10": 0.0
+    }
   },
   "referencia_bm25_curso": {
     "hit@5": 0.85,

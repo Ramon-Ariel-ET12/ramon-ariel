@@ -22,6 +22,11 @@ def preprocess(text: str) -> str:
     """Make tags tokenisable and normalise the text."""
     lowered = normalize_text(text)
     lowered = TAG_RE.sub(r"\1\2", lowered)
+    # The ASR spells units with inner dots ("1600 p.c. de descarga", "kg.cm2"). A dot
+    # that follows a single letter belongs to the abbreviation, not to the sentence:
+    # leaving it in splits the clause at "p.c." and the measurement disappears before
+    # the variable and the equipment can be resolved.
+    lowered = re.sub(r"\b([a-z])\.", r"\1", lowered)
     lowered = re.sub(r"\bdel\b", "de el", lowered)
     lowered = re.sub(r"\bal\b", "a el", lowered)
     return lowered
@@ -39,7 +44,8 @@ def _alias_variants(equipment: Equipment) -> set[str]:
             variants.add(f"a {number}")
     if equipment.kind == "filtro":
         letter = "a" if equipment.tag.upper().endswith("A") else "b"
-        for word in ("fito", "frito"):
+        # ASR variants seen in the official runs: "filto", "fitro", "fito", "frito".
+        for word in ("filto", "fitro", "fito", "frito"):
             variants.add(f"{word} {letter}")
             variants.add(f"el {word} {letter}")
     # The plant list spells "bomba uno"; operators also say "bomba 1".
