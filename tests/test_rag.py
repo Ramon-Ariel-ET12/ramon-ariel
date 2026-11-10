@@ -66,13 +66,15 @@ def test_order_history_chunks_get_equipment_and_manufacturer_metadata():
     documents = {"documentos": [
         {"id": "TX350-D", "emisor": "Trimax Industrial S.A.", "equipos": ["B-101", "B-102", "B-103"]},
     ]}
-    meta = _metadata_by_doc(documents)
+    # The order history is attributed to the equipment's maker (GET /api/planta), not to
+    # whichever manual lists the equipment.
+    meta = _metadata_by_doc(documents, {"B-101": "Trimax Industrial", "B-102": "Trimax Industrial"})
     fragment = {"id": "historial OT-24-0001", "doc": "historial", "numero": "OT-24-0001",
                 "titulo": "OT-24-0001 B-101 T-B-VAL", "clave": None, "pagina": None, "vigente": True,
                 "texto": "OT-24-0001 · 2024-10-03 · B-101 · T-B-VAL · propio"}
     chunk = _chunk(fragment, meta)
     assert chunk["equipment"] == ["B-101"]
-    assert chunk["manufacturer"] == "Trimax Industrial S.A."
+    assert chunk["manufacturer"] == "Trimax Industrial"
     assert chunk["section_key"] == "OT"
 
 

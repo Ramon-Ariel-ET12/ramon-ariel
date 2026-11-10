@@ -606,7 +606,7 @@ class NoteWorkflow:
         except Exception:  # noqa: BLE001
             log.warning("event context for %s could not be built", event["id"], exc_info=True)
             return
-        for key in ("sensor_trend", "order_history", "available_parts"):
+        for key in ("sections", "sensor_trend", "order_history", "available_parts"):
             if evidence.get(key):
                 context[key] = evidence[key]
         try:

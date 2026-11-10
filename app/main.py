@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import html
+import json
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -252,6 +253,20 @@ def _esc(value) -> str:
     return html.escape("" if value is None else str(value))
 
 
+def _sources(context) -> str:
+    """The manual section each conclusion is based on, rendered next to the event."""
+    if isinstance(context, str):
+        try:
+            context = json.loads(context)
+        except ValueError:
+            return ""
+    sections = (context or {}).get("sections") or []
+    citations = [str(item.get("citation")) for item in sections if item.get("citation")]
+    if not citations:
+        return ""
+    return f" <small>· fuentes: {html.escape(', '.join(citations))}</small>"
+
+
 @app.get("/health")
 async def health():
     if ctx is None:
@@ -276,7 +291,8 @@ async def index():
     for note in data["notes"]:
         rows.append(f"<tr><td>{_esc(note['id'])}</td><td>{_esc(note['ts'])}</td>"
                     f"<td>{_esc(note['status'])}</td><td>{_esc((note['transcript'] or '')[:120])}</td></tr>")
-    events = [f"<li><b>{_esc(e['type'])}</b> {_esc(e['equipment'])} ({_esc(e['origin'])}) - {_esc(e['summary'])}</li>"
+    events = [f"<li><b>{_esc(e['type'])}</b> {_esc(e['equipment'])} ({_esc(e['origin'])}) - {_esc(e['summary'])}"
+              f"{_sources(e.get('context'))}</li>"
               for e in data["events"]]
     orders = [f"<li><b>{_esc(o['state'])}</b> {_esc(o['equipment'])} {_esc(o['tasks'])} "
               f"<small>{_esc((o['payload'] or {}).get('motivo') or '')}</small></li>" for o in data["orders"]]

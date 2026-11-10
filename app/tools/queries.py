@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 import time
@@ -47,9 +48,13 @@ class ToolError(RuntimeError):
 AuditHook = Callable[[str, dict, bool, str | None, int], Awaitable[None]]
 
 
-def audited(name: str):
-    """Log every tool call with its arguments, result and latency.
+def audited(name: str, timeout: float = 5.0, retries: int = 1):
+    """Log every tool call, enforce a hard timeout and retry once.
 
+    Every tool is protected: an in-memory read returns in microseconds, an I/O read
+    (historian, order history, manual search) gets a longer budget and the plant client
+    already retries with backoff. This wrapper is the outer guarantee that no tool call
+    can hold the worker forever and that a transient timeout is retried once.
     The audit hook is optional so unit tests and the MCP server can run without a
     database; the structured log line is always emitted.
     """
@@ -58,17 +63,30 @@ def audited(name: str):
         async def wrapper(self, query, *args, **kwargs):
             started = time.perf_counter()
             arguments = query.model_dump() if hasattr(query, "model_dump") else {}
-            try:
-                result = await fn(self, query, *args, **kwargs)
-            except Exception as exc:
-                latency = int((time.perf_counter() - started) * 1000)
-                log.warning("tool=%s args=%s ok=false latency_ms=%s error=%s", name, arguments, latency, exc)
-                await self._audit(name, arguments, False, str(exc), latency)
-                raise
+            last_error: Exception | None = None
+            for attempt in range(retries + 1):
+                try:
+                    result = await asyncio.wait_for(fn(self, query, *args, **kwargs), timeout)
+                except TimeoutError as exc:
+                    last_error = exc
+                    if attempt < retries:
+                        log.warning("tool=%s args=%s timeout=true retry=%s", name, arguments, attempt + 1)
+                        continue
+                except Exception as exc:  # noqa: BLE001
+                    latency = int((time.perf_counter() - started) * 1000)
+                    log.warning("tool=%s args=%s ok=false latency_ms=%s error=%s", name, arguments, latency, exc)
+                    await self._audit(name, arguments, False, str(exc), latency)
+                    raise
+                else:
+                    latency = int((time.perf_counter() - started) * 1000)
+                    log.info("tool=%s args=%s ok=true latency_ms=%s", name, arguments, latency)
+                    await self._audit(name, arguments, True, None, latency)
+                    return result
             latency = int((time.perf_counter() - started) * 1000)
-            log.info("tool=%s args=%s ok=true latency_ms=%s", name, arguments, latency)
-            await self._audit(name, arguments, True, None, latency)
-            return result
+            error = f"timeout after {timeout}s ({retries + 1} attempts)"
+            log.warning("tool=%s args=%s ok=false latency_ms=%s error=%s", name, arguments, latency, error)
+            await self._audit(name, arguments, False, error, latency)
+            raise ToolError(error) from last_error
         return wrapper
     return decorate
 
@@ -103,7 +121,7 @@ class Tools:
                                        nombres=equipment.names, unidad_manometro=equipment.gauge_unit))
         return EquipmentList(equipos=items)
 
-    @audited("historial_sensores")
+    @audited("historial_sensores", timeout=15.0)
     async def historial_sensores(self, query: SensorHistoryQuery) -> SensorHistory:
         limit = self.snapshot.limit(query.tag, query.variable)
         if limit is None:
@@ -119,7 +137,7 @@ class Tools:
             raise ToolError(f"respuesta inválida del historiador: {exc}") from exc
         return SensorHistory(tag=query.tag, variable=query.variable, unidad=limit.unit, muestras=muestras)
 
-    @audited("historial_ordenes")
+    @audited("historial_ordenes", timeout=15.0)
     async def historial_ordenes(self, query: OrderHistoryQuery) -> OrderHistory:
         try:
             orders = await self.plant.order_history(query.equipo)
@@ -184,7 +202,7 @@ class Tools:
                                   estandar=False)
         return TaskCatalog(tareas=list(seen.values()))
 
-    @audited("buscar_manuales")
+    @audited("buscar_manuales", timeout=20.0)
     async def buscar_manuales(self, query: ManualSearchQuery) -> ManualResults:
         if self.search is None:
             raise ToolError("el indice de manuales no esta configurado")

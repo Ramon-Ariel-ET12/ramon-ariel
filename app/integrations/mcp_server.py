@@ -1,7 +1,7 @@
 """MCP server exposing read-only plant tools.
 
 Run over stdio:  python -m app.integrations.mcp_server
-The HTTP surface is mounted from the main app when the SDK provides an ASGI transport.
+It is started by hand (or by an MCP client) and is not mounted into the main app.
 """
 
 from __future__ import annotations

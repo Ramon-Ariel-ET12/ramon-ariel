@@ -51,6 +51,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-pia}
       POSTGRES_USER: ${POSTGRES_USER:-pia}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pia-local-dev}
+      HTTP_PROXY: http://enlace:3128
+      HTTPS_PROXY: http://enlace:3128
+      NO_PROXY: broker,sim,localhost
     volumes:
       - assistant-db:/var/lib/postgresql/data
     healthcheck:
@@ -65,13 +68,18 @@ services:
           memory: 1g
     restart: unless-stopped
 
-  # Control-network gateway for the UI. The core stays on the internal plant
-  # network; this is the only user-facing ingress.
+  # Control-network ingress for the UI. It is not a plant service: no plant label, no
+  # state, every request proxied to cerebro. planta-lan is `internal`, so Docker cannot
+  # publish a port from a container that is only on it; this nginx is the single hop
+  # that makes the UI reachable from the control network. The plant services are
+  # `cerebro` and `db`, both only on planta-lan.
   panel:
     image: nginx:1.27-alpine
     networks: [planta-lan, control]
-    labels:
-      academia.planta: pc
+    environment:
+      HTTP_PROXY: http://enlace:3128
+      HTTPS_PROXY: http://enlace:3128
+      NO_PROXY: broker,sim,localhost
     volumes:
       - ./deploy/panel.conf:/etc/nginx/conf.d/default.conf:ro
     ports:

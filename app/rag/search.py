@@ -65,8 +65,11 @@ class ManualSearch:
         ranked = []
         for citation, score in fused.items():
             row = rows_by_citation[citation]
+            if row.get("current") is False:
+                continue
             chunk = {"title": row.get("title", ""), "text": row.get("text", ""),
-                     "current": row.get("current", True), "doc": row.get("doc", ""),
+                     "section_key": row.get("section_key", ""), "current": True,
+                     "doc": row.get("doc", ""),
                      "equipment": row.get("equipment") or [],
                      "manufacturer": row.get("manufacturer") or ""}
             ranked.append((score * metadata_weight(chunk, query, tags), citation, row))

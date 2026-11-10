@@ -293,3 +293,36 @@ async def test_vivo_note_reports_only_what_was_said(snapshot, materials):
     rows = repo.parts[0]["rows"]
     assert [(row["tag"], row["variable"], row["value"]) for row in rows] == [
         ("B-101", "presion_descarga_local", 112.0)]
+
+
+async def test_escalated_event_context_stores_the_manual_citations(snapshot, materials):
+    """The annex asks every conclusion to cite the manual section it comes from."""
+    wf, repo, _ = make_workflow("", snapshot, materials)
+    stored: dict = {}
+
+    async def capture(event_id, context):
+        stored.update(context)
+
+    repo.update_event_context = capture  # type: ignore[assignment]
+
+    class Search:
+        async def search(self, query, k=6):
+            return [{"citation": "TX350-D §3.2", "doc": "TX350-D", "title": "Límites",
+                     "current": True, "text": "presión de descarga"}]
+
+    class Plant:
+        async def state(self):
+            return {"ts": "2026-11-03T08:00:00-03:00"}
+
+        async def historian(self, tag, variable, desde=None, hasta=None):
+            return [{"ts": "2026-11-03T07:00:00-03:00", "valor": 112.0}]
+
+        async def order_history(self, equipo=None):
+            return []
+
+    wf.search = Search()
+    wf.plant = Plant()  # type: ignore[assignment]
+    await wf._enrich_event({"id": "E1", "equipo": "B-101", "tipo": "Escalado"}, [], [], {})
+
+    assert stored["sections"][0]["citation"] == "TX350-D §3.2"
+    assert stored["sensor_trend"]["presion_descarga"]["last"] == 112.0

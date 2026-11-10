@@ -52,3 +52,20 @@ de mantenimiento. Al mismo tiempo, el audio y las fotos son los datos más pesad
 sensibles: se retienen solo lo necesario para auditoría reciente. La verdad de campo
 (`/api/verdad`) no se persiste: en modo corrección está cerrada y el sistema no puede
 depender de ella.
+
+## Qué se consulta por RAG y qué por API o SQL
+
+La regla es simple: **el RAG explica, la API y el SQL deciden**.
+
+| Consulta | Canal | Motivo |
+|---|---|---|
+| Límites de operación (alarma alta/baja, disparo) | `GET /api/planta` → `snapshot.limits` | Son números exactos que definen una alarma; el manual Rev. C tiene otros límites y está vencido. Un fragmento recuperado por similitud no es una fuente válida para decidir un desvío. |
+| Stock, costo y lista de materiales | datos estructurados (`Materiales`, `/api/inventario`) | El stock cambia y se consulta por código; el RAG devolvería texto narrativo desactualizado. |
+| Historial de sensores y de órdenes | `GET /api/historian/...`, `/api/ordenes` | Series temporales: se agregan por ventana, no se buscan por similitud. |
+| Catálogo de tareas, precios, aprobación | datos estructurados del contrato | La decisión debe ser determinista y auditable. |
+| "¿Qué dice el manual sobre…?", "¿qué significa este código de falla?", "¿qué tareas recomienda el fabricante para esta bomba?" | RAG (pgvector + BM25) con cita de sección | El conocimiento está en prosa, disperso y con trampas (manuales de otros modelos, revisión vencida). |
+
+Por eso el contexto del evento escalado guarda `sections` con la cita de cada fragmento
+usado, y el límite que disparó el evento se lee del snapshot, no del texto. Si la búsqueda
+no encuentra respaldo, la conclusión se emite sin cita y así se ve; nunca se inventa una
+sección.

@@ -269,25 +269,25 @@ class Repository:
 
     async def rag_lexical(self, query: str, limit: int = 40) -> list[dict]:
         return await self.db.fetch(
-            """SELECT id, citation, doc, title, current, manufacturer, equipment, text,
+            """SELECT id, citation, doc, title, section_key, current, manufacturer, equipment, text,
                       ts_rank_cd(tsv, websearch_to_tsquery('spanish', %s)) AS score
                FROM rag_chunks
-               WHERE tsv @@ websearch_to_tsquery('spanish', %s)
+               WHERE current IS NOT FALSE AND tsv @@ websearch_to_tsquery('spanish', %s)
                ORDER BY score DESC LIMIT %s""",
             (query, query, limit),
         )
 
     async def rag_vector(self, embedding: list[float], limit: int = 40) -> list[dict]:
         return await self.db.fetch(
-            """SELECT id, citation, doc, title, current, manufacturer, equipment, text,
+            """SELECT id, citation, doc, title, section_key, current, manufacturer, equipment, text,
                       1 - (embedding <=> %s::vector) AS score
-               FROM rag_chunks WHERE embedding IS NOT NULL
+               FROM rag_chunks WHERE embedding IS NOT NULL AND current IS NOT FALSE
                ORDER BY embedding <=> %s::vector LIMIT %s""",
             (_vector(embedding), _vector(embedding), limit),
         )
 
     async def rag_all(self) -> list[dict]:
-        return await self.db.fetch("SELECT id, citation, doc, title, current, text FROM rag_chunks")
+        return await self.db.fetch("SELECT id, citation, doc, title, section_key, current, text FROM rag_chunks")
 
     async def rag_refresh_metadata(self, chunks: list[dict]) -> None:
         """Update derived metadata in place, without recomputing embeddings."""
@@ -298,14 +298,14 @@ class Repository:
                 for chunk in chunks:
                     await cur.execute(
                         """UPDATE rag_chunks SET
-                             equipment = CASE WHEN %s::jsonb = '[]'::jsonb THEN equipment ELSE %s::jsonb END,
-                             manufacturer = CASE WHEN %s = '' THEN manufacturer ELSE %s END,
-                             section_key = CASE WHEN %s = '' THEN section_key ELSE %s END,
+                             equipment = %s::jsonb,
+                             manufacturer = %s,
+                             section_key = %s,
                              current = %s
                            WHERE id = %s""",
-                        (Jsonb(chunk.get("equipment", [])), Jsonb(chunk.get("equipment", [])),
-                         chunk.get("manufacturer", ""), chunk.get("manufacturer", ""),
-                         chunk.get("section_key", ""), chunk.get("section_key", ""),
+                        (Jsonb(chunk.get("equipment", [])),
+                         chunk.get("manufacturer", ""),
+                         chunk.get("section_key", ""),
                          chunk.get("current", True), chunk["id"]),
                     )
 
@@ -313,7 +313,8 @@ class Repository:
 
     async def console_state(self) -> dict[str, Any]:
         notes = await self.db.fetch("SELECT id, ts, status, transcript FROM notes ORDER BY ts DESC LIMIT 10")
-        events = await self.db.fetch("SELECT id, ts, type, equipment, origin, summary FROM events ORDER BY created_at DESC LIMIT 15")
+        events = await self.db.fetch("SELECT id, ts, type, equipment, origin, summary, context "
+                                     "FROM events ORDER BY created_at DESC LIMIT 15")
         orders = await self.db.fetch("SELECT id, equipment, state, tasks, payload FROM orders ORDER BY updated_at DESC LIMIT 15")
         pending = await self.pending_count()
         usage = await self.usage_summary()

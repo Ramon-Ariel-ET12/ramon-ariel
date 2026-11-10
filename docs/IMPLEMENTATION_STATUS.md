@@ -36,7 +36,10 @@ del corrector y sin variables de entorno. Corridas anteriores: 88,8 / 89,2 / 82,
 | B4/A4a (parser) | La “y” espuria entre la lectura y la variable (`1600 p.c. y de descarga`) ya no corta la cláusula. |
 | F2b (RAG) | El filtro de “otro modelo” ya no oculta la sección cuando la pregunta la nombra (PIA-1/PIA-2). |
 | F2c (RAG) | Los códigos de fabricante se expanden a F01–F10 en la consulta léxica (MBP-4 §6). |
-| F1 (metadatos) | Los 243 fragmentos de historial derivan equipo y fabricante del título y del documento: 681/701 con metadatos (los 20 restantes son órdenes de planta sin equipo). |
+| F1 (metadatos) | Los 243 fragmentos de historial derivan equipo del título y fabricante de `/api/planta` (no del emisor de un manual ajeno): 681/701 con metadatos, 222 de historial con fabricante correcto. |
+| F2a (RAG) | Un fragmento con `vigente=false` (108 de la Rev. C) no se devuelve en ninguno de los dos caminos: filtro en SQL y en el índice en memoria. |
+| C3b/F6 (contexto) | El contexto del evento escalado persiste `sections` con la cita, y el panel la muestra ("fuentes: TX350-D §3.2"). |
+| Tools (23) | `audited()` aplica timeout duro y un reintento a las ocho tools, con tests del camino lento y del reintento exitoso. |
 | C3b/F6 (contexto) | `build_event_context` recibe el buscador: el evento escalado guarda las secciones citadas. |
 | D2 (tools) | Contratos `strict=True`: se rechazan cadenas donde se espera un número. |
 | B8 (VIVO) | Pruebas de nota VIVO vacía (sin evento) y con una lectura real. |

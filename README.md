@@ -209,10 +209,15 @@ Tests: `tests/test_tools.py` y `tests/test_mcp.py`.
 - Ingesta de `/documentos/fragmentos.jsonl` (701 fragmentos) con metadata: documento,
   fabricante/emisor, equipos, sección, cita, página y vigencia.
 - PostgreSQL + pgvector, HNSW; búsqueda híbrida BM25 español + vectorial con RRF y
-  re-ranking por metadata (penaliza `vigente=false` y secciones de otros modelos).
+  re-ranking por metadata. Un fragmento con `vigente=false` (la Rev. C vencida) no se
+  devuelve nunca; las secciones de otros modelos se penalizan salvo que la pregunta los
+  nombre.
 - Evaluación: `uv run python evaluacion/retrieval_eval.py` (71 preguntas, recall@k,
   comparación con BM25 y conteo de Rev. C antes que D).
-- Límites y stock **no** salen del RAG: vienen de la API y de los datos estructurados.
+- Cada conclusión escalada guarda y muestra la cita de la sección que la respalda
+  (`events.context.sections`, visible en el panel como "fuentes: TX350-D §3.2").
+- Límites y stock **no** salen del RAG: vienen de la API y de los datos estructurados
+  (la regla completa está en [`docs/MEMORIA.md`](docs/MEMORIA.md)).
 - Context builder para el análisis: `app/rag/context.py` (el análisis completo es de
   la Entrega 2).
 - Códigos de fabricante traducidos a F01–F10 con la tabla del MBP-4 §6

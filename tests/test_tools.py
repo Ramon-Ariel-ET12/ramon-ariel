@@ -153,3 +153,48 @@ async def test_malformed_historian_payload_is_a_tool_error(snapshot, materials):
     tools = Tools(BrokenPlant(), materials, snapshot)  # type: ignore[arg-type]
     with pytest.raises(ToolError):
         await tools.historial_sensores(SensorHistoryQuery(tag="B-101", variable="presion_descarga"))
+
+
+async def test_every_tool_has_a_timeout_and_one_retry(monkeypatch):
+    """The audited() wrapper is what gives each tool its hard budget and retry."""
+    import asyncio
+
+    from app.tools.queries import audited
+
+    calls = {"n": 0}
+
+    class Slow:
+        async def _audit(self, *args, **kwargs):
+            return None
+
+        @audited("slow", timeout=0.05, retries=1)
+        async def run(self, query):
+            calls["n"] += 1
+            await asyncio.sleep(0.5)
+            return "never"
+
+    with pytest.raises(ToolError, match="timeout"):
+        await Slow().run(InventoryQuery(almacen="central"))
+    assert calls["n"] == 2  # first attempt + one retry
+
+
+async def test_tool_that_recovers_on_retry_returns_the_value():
+    import asyncio
+
+    from app.tools.queries import audited
+
+    calls = {"n": 0}
+
+    class Flaky:
+        async def _audit(self, *args, **kwargs):
+            return None
+
+        @audited("flaky", timeout=0.05, retries=1)
+        async def run(self, query):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                await asyncio.sleep(0.5)
+            return "ok"
+
+    assert await Flaky().run(InventoryQuery(almacen="central")) == "ok"
+    assert calls["n"] == 2

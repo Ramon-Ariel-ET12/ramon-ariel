@@ -18,8 +18,14 @@ EMBED_DIM = 384
 DEFAULT_TAG_RE = re.compile(r"\b([BF]-\d{3}[AB]?|TK-\d{3}|FT-\d{3})\b", re.IGNORECASE)
 
 
-def _metadata_by_doc(documents: dict) -> dict:
-    """Document metadata plus the equipment → manufacturer map used for order histories."""
+def _metadata_by_doc(documents: dict, equipment_makers: dict[str, str] | None = None) -> dict:
+    """Document metadata plus the equipment → manufacturer map used for order histories.
+
+    A manual's issuer is the maker of the machines it documents (Trimax, Filtrapat).
+    An order history has no issuer of its own, so its manufacturer comes from
+    ``GET /api/planta`` (``equipos[].fabricante``); the issuer of whichever manual
+    happens to list the equipment is not the equipment's maker.
+    """
     docs: dict[str, dict] = {}
     makers: dict[str, str] = {}
     for item in documents.get("documentos", []):
@@ -31,7 +37,9 @@ def _metadata_by_doc(documents: dict) -> dict:
     known = sorted({tag for info in docs.values() for tag in info["equipment"]} | set(makers))
     tag_re = (re.compile(r"\b(" + "|".join(re.escape(tag) for tag in known) + r")\b", re.IGNORECASE)
               if known else DEFAULT_TAG_RE)
-    return {"docs": docs, "makers": makers, "tag_re": tag_re}
+    return {"docs": docs, "makers": makers,
+            "equipment_makers": {str(k).upper(): v for k, v in (equipment_makers or {}).items()},
+            "tag_re": tag_re}
 
 
 def _chunk(fragment: dict, meta: dict) -> dict:
@@ -45,7 +53,11 @@ def _chunk(fragment: dict, meta: dict) -> dict:
         heading = f"{fragment.get('titulo') or ''} {fragment.get('numero') or ''}"
         equipment = sorted({match.group(1).upper() for match in meta["tag_re"].finditer(heading)})
     manufacturer = str(info.get("manufacturer") or "")
-    if not manufacturer:
+    if doc == "historial":
+        # The order history is not a document: attribute it to the equipment's maker.
+        manufacturer = next((meta["equipment_makers"][tag] for tag in equipment
+                             if tag in meta["equipment_makers"]), "")
+    elif not manufacturer:
         manufacturer = next((meta["makers"][tag] for tag in equipment if tag in meta["makers"]), "")
     section = str(fragment.get("clave") or "")
     if not section and doc == "historial":
@@ -97,11 +109,15 @@ async def ensure_index(repo: Repository, plant: PlantClient, settings: Settings)
     try:
         fragments = await plant.fragments()
         documents = await plant.documents()
+        definition = await plant.definition()
+        makers = {item["tag"]: item.get("fabricante") for item in definition.get("equipos", [])
+                  if item.get("fabricante")}
     except Exception as exc:  # noqa: BLE001
         log.warning("plant corpus unavailable, using bundled snapshot: %s", exc)
         fragments = _bundled_fragments(settings)
         documents = {"documentos": []}
-    meta = _metadata_by_doc(documents)
+        makers = {}
+    meta = _metadata_by_doc(documents, makers)
     chunks = [_chunk(fragment, meta) for fragment in fragments]
     if count >= len(chunks):
         # Text and embeddings are already there. Refresh the metadata a newer indexer

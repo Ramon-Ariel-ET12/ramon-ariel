@@ -13,7 +13,10 @@ STOPWORDS = set(
     mi muy no o otra otras para pero por que se si sin sobre su sus un una uno y ya ante hace hacer tiene son fue ser
     puede qué cuál cuáles cómo cuánto cuántos dónde""".split()
 )
-OTHER_MODEL_RE = re.compile(r"tx-?250|tx-?500|fc-?24|fc-?96|pia-?1|pia-?2", re.IGNORECASE)
+OTHER_MODEL_RE = re.compile(
+    r"tx-?250|tx-?500|fc-?24|fc-?96|pia-?1|pia-?2|otros modelos|otra familia",
+    re.IGNORECASE,
+)
 MANUFACTURER_STOPWORDS = {"industrial", "gerencia", "operaciones", "contratos", "yacimiento", "srl", "sa"}
 
 
@@ -152,9 +155,14 @@ class HybridIndex:
         reranked = []
         for citation, score in fused.items():
             fragment = self.by_id[citation]
+            if fragment.get("vigente") is False:
+                # An expired manual never answers: its limits are the trap this corpus
+                # tests. It stays indexed (searchable when someone asks for it by id),
+                # but it does not compete in the operator's ranking.
+                continue
             chunk = {"title": fragment.get("titulo", ""), "text": fragment["texto"],
                      "section_key": fragment.get("clave", ""), "doc": fragment.get("doc", ""),
-                     "current": fragment.get("vigente") is not False, "equipment": [],
+                     "current": True, "equipment": [],
                      "manufacturer": fragment.get("fabricante", "")}
             reranked.append((score * metadata_weight(chunk, query, equipment_tags), citation))
         reranked.sort(reverse=True)
