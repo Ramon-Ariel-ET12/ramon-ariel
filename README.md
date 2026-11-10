@@ -30,7 +30,8 @@ planta-lan (interna, sin internet)                         planta-control (inter
 
 ### Qué corre en la planta y qué en la nube
 
-- **Planta (`cerebro` + `db`, solo `planta-lan`, 4 CPU / 8 GB entre ambos)**:
+- **Planta (`cerebro` + `db` + el ingreso `panel`, todos con el label
+  `academia.planta: pc` y en `planta-lan`; 3,75 CPU / 7,13 GiB entre los tres)**:
   recepción MQTT, descarga de audio y fotos, transcripción local, detección de
   condición insegura, extracción del parte, diálogo con la tablet, eventos, reglas de
   aprobación, órdenes, herramientas locales, índice y búsqueda de manuales, memoria.
@@ -94,9 +95,12 @@ docker compose up -d --build
 
 `planta-lan` es una red `internal` (sin salida a internet) y Docker no publica puertos de
 un contenedor que solo está en una red interna. Por eso hay un `panel` nginx mínimo que
-es el único ingreso desde el host hacia la UI: no ejecuta lógica de planta, no tiene
-estado y no lleva el label `academia.planta: pc` (el cerebro y la base sí). Contando
-también el panel, el conjunto suma **4,0 CPU y 7,6 GB**, dentro del límite de 4 CPU / 8 GB.
+es el único ingreso desde el host hacia la UI: no ejecuta lógica de planta y no tiene
+estado, pero corre en la PC de planta y lleva el mismo label `academia.planta: pc` que el
+cerebro y la base. Los servicios de planta suman **3,75 CPU y 7,13 GiB**; el stack
+completo, con la réplica `nube-sync`, **4,0 CPU y 7,375 GiB**, dentro del límite de
+4 CPU / 8 GB. `scripts/check_compose_budget.py` verifica red, label, proxies y ese
+presupuesto sobre el compose resuelto (también en CI).
 
 El compose usa PostgreSQL 16 con pgvector, aplica el esquema al arrancar y deja el
 latido en `sistema/estado` cada 30 s.
@@ -290,6 +294,10 @@ Todo el proceso, en el orden correcto y con la evidencia en `var/audit/verificac
   Informe: `evaluacion/informe_retrieval.json`.
 - ASR: mediana 3,3 s por nota en la corrida; máximo 17,6 s en la primera nota de
   `fuga-sin-enlace`, con el índice RAG construyéndose en paralelo sobre las mismas 3 CPU.
+- Integración continua: `.github/workflows/ci.yml` es un workflow reutilizable
+  (`workflow_call`) con lint, el contrato de despliegue y la suite completa contra un
+  servicio `pgvector/pgvector:pg16`; `push.yml` lo invoca y `rag.yml` corre la evaluación
+  de recuperación con umbral sobre la línea de base.
 - Pruebas: **166 pruebas, 0 fallos** con `TEST_DATABASE_URL` apuntando a la base del
   compose (165 sin la de integración, que se saltea si la variable no está);
   `ruff check .` limpio.

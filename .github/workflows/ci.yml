@@ -93,4 +93,6 @@ jobs:
         env:
           # The integration test creates the schema itself (pgvector extension included).
           TEST_DATABASE_URL: postgresql://pia:pia-local-dev@localhost:5432/pia
+          # Lets the retrieval test use corpus.evaluar.evaluar from the clone above.
+          PLANTA_REPO_DIR: /tmp/academia2026-tp
         run: uv run pytest -q
