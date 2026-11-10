@@ -7,7 +7,7 @@ virtual está en [`END_TO_END_TEST_REPORT.md`](END_TO_END_TEST_REPORT.md).
 
 ## Resultado
 
-**91,3 / 100 · APRUEBA** en la corrida oficial del **2026-11-10 15:26**, archivada en la
+**91,3 / 100 · APRUEBA** en la corrida oficial del **2026-11-10 17:39** (commit `b9fa0ff`), archivada en la
 carpeta de corridas del corrector (`academia2026-tp/correccion/corridas/academiaNovit2026/`),
 sin faltas eliminatorias, en `martes-tranquilo` y `fuga-sin-enlace`, con el comando canónico
 del corrector y sin variables de entorno. Corridas anteriores: 88,8 / 89,2 / 82,4 / 73,5. Detalle:
@@ -19,7 +19,7 @@ del corrector y sin variables de entorno. Corridas anteriores: 88,8 / 89,2 / 82,
 | Implementados y verificados | 84 |
 | Parciales documentados | 12 |
 | No verificable / bloqueado | 2 (B2a: la lista cerrada no está publicada; A1d: no hay repo público) |
-| Pruebas | 166 pruebas, 0 fallos con `TEST_DATABASE_URL` (165 + 1 de integración) |
+| Pruebas | 169 pruebas, 0 fallos con `TEST_DATABASE_URL` (168 + 1 de integración) |
 | Lint | `ruff check .` limpio |
 | Build sin variables | `docker compose build` instala `planta-contrato 0.2.0` |
 | RAG | hit@5 0,873 · recall@5 0,718 · Rev. C antes que D: 0 |
@@ -61,7 +61,7 @@ del corrector y sin variables de entorno. Corridas anteriores: 88,8 / 89,2 / 82,
   reales del ASR y corre sobre texto parcial, pero una palabra completamente perdida puede
   requerir ampliar patrones.
 - La primera nota de una corrida tarda más: el índice RAG se construye al arrancar y compite
-  por las mismas 3 CPU que el ASR. En la corrida medida la alerta S1 salió a los 20,0 s
+  por las mismas 3 CPU que el ASR. En la corrida medida la alerta S1 salió a los 20,4 s
   (límite 30 s).
 - La central de aprobación/certificación (G2/G3) y las decisiones del planificador no
   tienen canal en el contrato: corresponden a la Entrega 2.

@@ -41,7 +41,7 @@ Método: lectura del anexo, inspección del árbol en `HEAD`, `docker compose co
 | 17 | Evento por parte confirmado y por desvío de `planta/sensores/#`: id idempotente, origen, `nota_ids` | MET | `note_events` (uno por equipo, `uuid5` determinista, `origen: parte`, `nota_ids`); `SensorDetector` publica el evento del episodio sostenido con id persistido en `sensor_state`. |
 | 18 | Límites de `planta.yaml`/`/api/planta`, no del manual; misma data → misma decisión | MET | `snapshot.limits` (alarma alta/baja/disparo) desde la API con fallback `datos/planta.yaml`; detección determinista, sin LLM ni nube. |
 | 19 | SinNovedad o Escalado con contexto; sostenida sí, pico no; "parada, en reserva" no es anomalía | MET | `note_events` + `build_event_context` (filas, fotos, tendencia de 6 h, secciones citadas, historial de órdenes, repuestos); ventana de 5 min/3 muestras/80 % con histéresis; `NORMAL_STATES` incluye "parada, en reserva". |
-| 20 | Alerta S1–S4 local, tablet con procedimiento y aviso por radio, `espera_respuesta: false`, < 30 s, sin falsas alarmas | MET | `app/domain/safety.py` (detector local sobre el texto, también parcial); `emergency_text` nombra el procedimiento y el aviso por radio; `waits=False`. Medido: **20,0 s** en la corrida oficial, 0 falsas alarmas. |
+| 20 | Alerta S1–S4 local, tablet con procedimiento y aviso por radio, `espera_respuesta: false`, < 30 s, sin falsas alarmas | MET | `app/domain/safety.py` (detector local sobre el texto, también parcial); `emergency_text` nombra el procedimiento y el aviso por radio; `waits=False`. Medido: **20,4 s** en la corrida oficial, 0 falsas alarmas. |
 
 ## Tools y MCP
 
@@ -77,7 +77,7 @@ Método: lectura del anexo, inspección del árbol en `HEAD`, `docker compose co
 | # | Requisito | Estado | Evidencia |
 |---|---|---|---|
 | 35 | `corregir.py --escenarios martes-tranquilo fuga-sin-enlace` mide A1–A4b, B1, B2, F1, F2 | MET | Corrida oficial: **91,3 / 100 · APRUEBA**; A1 100, A4a 100, A4b 100, B1 100, B2 100, E1–E3 100, F1 100, F2 100; A2/A3 69 %. |
-| 36 | Eliminatorias: `sin_alerta_de_seguridad`, `sistema_mudo` | MET | `eliminatorias: {}` en `resultado.json`; alerta S1 publicada a los 20,0 s. |
+| 36 | Eliminatorias: `sin_alerta_de_seguridad`, `sistema_mudo` | MET | `eliminatorias: {}` en `resultado.json`; alerta S1 publicada a los 20,4 s. |
 
 ## Resumen
 

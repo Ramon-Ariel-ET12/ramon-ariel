@@ -19,12 +19,12 @@ found in the first pass. The detailed pre-remediation snapshot is
 
 | Metric | Value |
 |---|---|
-| Official correction (`martes-tranquilo` + `fuga-sin-enlace`, 2026-11-10 15:26) | **91,3 / 100 · APRUEBA**, `eliminatorias: {}` |
+| Official correction (`martes-tranquilo` + `fuga-sin-enlace`, 2026-11-10 17:39, commit `b9fa0ff`) | **91,3 / 100 · APRUEBA**, `eliminatorias: {}` |
 | Requirement matrix (98 rows) | **PASS 84 · PARTIAL 12 · FAIL 0 · NOT VERIFIED 1 (B2a) · BLOCKED 1 (A1d)** |
 | Tests | 166 passed, 0 failed with `TEST_DATABASE_URL` (165 + 1 integration) |
 | Lint | `ruff check .` clean |
 | RAG (`corpus.evaluar.evaluar`) | hit@5 **0,873** · recall@5 **0,718** · MRR 0,678 · distractor@5 **0** (BM25: 0,859 / 0,674 / 6 of 71) |
-| Independent audit of the run | A1 13/13 · A2 10/13 · A3 10/13 · A3b 22/22 · A4a 3/3 · A4b 9/9 · B1 22/22 · S1 alert **20,0 s** · 0 false alarms · 0 duplicates · 0 invalid |
+| Independent audit of the run | A1 13/13 · A2 10/13 · A3 10/13 · A3b 22/22 · A4a 3/3 · A4b 9/9 · B1 22/22 · S1 alert **20,4 s** · 0 false alarms · 0 duplicates · 0 invalid |
 | Index metadata | 681/701 chunks with equipment + manufacturer (the 20 without are plant-level orders) |
 
 Fixed in this pass: correction targeting and no-op handling (B7d), 180 s note budget and
@@ -139,7 +139,7 @@ Status: **IV** implemented and verified · **INV** implemented, not verified ·
 | C4 | Instructs the emergency procedure | `emergency_text` | E2E | IV | tablet text "Aplique el procedimiento de emergencia…" |
 | C5 | Notify the shift supervisor by radio | same text | tests | IV | `test_emergency_text_mentions_radio_and_supervisor` |
 | C6 | `espera_respuesta: false` | `_handle_safety` | E2E + official | IV | alert message `espera_respuesta=false` |
-| C7 | `AlertaSeguridad` in < 30 real seconds | same | official + E2E | IV | official: 20.0 s; E2E: 2.5–3.0 s after the note |
+| C7 | `AlertaSeguridad` in < 30 real seconds | same | official + E2E | IV | official: 20.4 s; E2E: 2.5–3.0 s after the note |
 | C8 | No false positives | negation window + patterns | official + tests | IV | 0 false alerts over 13 official notes; ordinary notes return `None` |
 
 ### D. Tools and MCP
@@ -195,8 +195,8 @@ Status: **IV** implemented and verified · **INV** implemented, not verified ·
 | F3 | `planta_contrato` installed with pip, not copied | `Dockerfile` (build context or public git) | image inspect | IV | `planta-contrato 0.2.0` importable inside the image |
 | F4 | Correct installation order | after `uv sync` | image inspect | IV | contract present after the final sync |
 | F5 | Local models available | `scripts/download_models.py` at build | runtime | IV | ASR + embeddings load offline |
-| F6 | Plant services only on `planta-lan` | compose networks | `docker compose config` | PI | `cerebro` and `db` only on `planta-lan`; the single host-ingress `panel` is dual-homed because Docker cannot publish ports from an internal network (documented, no plant logic, no label) |
-| F7 | Label `academia.planta: pc` on plant services | compose labels | config | IV | `cerebro`, `db` |
+| F6 | Plant services only on `planta-lan` | compose networks | `docker compose config` | PI | `cerebro` and `db` only on `planta-lan`; the single host-ingress `panel` is dual-homed because Docker cannot publish ports from an internal network (documented, no plant logic, labelled like the rest) |
+| F7 | Label `academia.planta: pc` on plant services | compose labels | config | IV | `cerebro`, `db`, `panel` (`nube-sync` is the only unlabelled service) |
 | F8 | Combined limits ≤ 4 CPU / 8 GB | compose limits | config | IV | 3.75 CPU / 7.5 GiB labelled; 4.0 CPU / 7.6 GiB counting the panel |
 | F9 | Outbound via `HTTP(S)_PROXY=http://enlace:3128` | compose env | config | IV | both set on `cerebro` |
 | F10 | `NO_PROXY=broker,sim,localhost` | compose env | config | IV | set; `PlantClient` uses `trust_env=False` |
@@ -316,7 +316,9 @@ else is 100 % in every run.
    Similar patterns could be added if the course publishes more recordings.
 4. **F6 – the host-facing `panel`** is dual-homed (`planta-lan` + `control`) because Docker
    cannot publish ports of a container that is only on an internal network. It carries no
-   plant logic and no label; resource totals stay within the limit either way.
+   plant logic, does carry the plant label (it runs on the plant PC) and the resource
+   totals stay within the limit either way; `scripts/check_compose_budget.py` verifies
+   network, label, proxies and budget on the resolved compose.
 5. **D1/D2/F3/G1 are not measurable** with the two mandatory scenarios; they need the
    optional scenarios (`sin-luz`, `contratista`, `tormenta-perfecta`), which the rubric
    does not require for this delivery and which take considerably longer.

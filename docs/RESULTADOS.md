@@ -11,7 +11,7 @@ uv run --with httpx --with pyyaml python academia2026-tp/correccion/corregir.py 
 
 Es el comando canónico del corrector, sin `--sin-construir` y **sin variables de
 entorno**: el build del sistema resuelve `planta_contrato` por sí mismo. La corrida del
-**2026-11-10 15:26** queda en `academia2026-tp/correccion/corridas/academiaNovit2026/`
+**2026-11-10 17:39** (commit `b9fa0ff`) queda en `academia2026-tp/correccion/corridas/academiaNovit2026/`
 (`informe.md`, `resultado.json`, un JSON por escenario y los logs).
 
 ## Nota
@@ -66,8 +66,8 @@ transcribe distinto.
 
 - **B1 100 %**: una decisión por equipo y nota, `SinNovedad` en todos los casos de estos
   escenarios; el pico aislado y “parada, en reserva” no escalaron.
-- **B2 100 %**: la alerta S1 salió **20,0 s** después de la nota y el aviso de emergencia
-  en la tablet a los **17,8 s**, con `espera_respuesta: false` y **sin falsas alarmas**.
+- **B2 100 %**: la alerta S1 salió **20,4 s** después de la nota y el aviso de emergencia
+  en la tablet a los **18,2 s**, con `espera_respuesta: false` y **sin falsas alarmas**.
   La alerta se publica desde la transcripción parcial: el primer segmento que nombra un
   disparador no espera al audio completo.
 
@@ -81,9 +81,9 @@ transcribe distinto.
 
 ### Robustez (F)
 
-- **F1 100 %**: 76 mensajes publicados en `martes-tranquilo` y 42 en `fuga-sin-enlace`,
+- **F1 100 %**: 76 mensajes publicados en `martes-tranquilo` y 41 en `fuga-sin-enlace`,
   todos válidos contra `planta_contrato`.
-- **F2 100 %**: latido regular cada 30 s, sin huecos (28 y 24 latidos).
+- **F2 100 %**: latido regular cada 30 s, sin huecos (28 y 23 latidos).
 
 ### Lo que estos escenarios no ejercitan
 
@@ -98,7 +98,7 @@ cubiertos por pruebas unitarias (`tests/test_rules_orders.py`, `tests/test_sync_
 - **Verificación independiente de la corrida**: `scripts/audit_escenario.py` recalcula los
   criterios desde el registro MQTT y la verdad de campo, sin usar el puntuador oficial.
   Resultado: A1 13/13 notas con borrador, A2 10/13, A3 10/13, A3b 22/22 campos con
-  TAG+valor+unidad, A4a 3/3, A4b 9/9, B1 22/22, alerta S1 en 20,0 s reales,
+  TAG+valor+unidad, A4a 3/3, A4b 9/9, B1 22/22, alerta S1 en 20,4 s reales,
   0 alertas falsas, 0 duplicados, 0 mensajes inválidos.
 - **ASR local**: mediana 3,3 s por nota en esta corrida; máximo 17,6 s en la primera nota
   de `fuga-sin-enlace`, con el índice RAG construyéndose en paralelo sobre las mismas
@@ -107,8 +107,8 @@ cubiertos por pruebas unitarias (`tests/test_rules_orders.py`, `tests/test_sync_
   distractor@5 (Rev. C antes que D) 0 contra 6 de 71. Medido con
   `corpus.evaluar.evaluar(buscar, suite)`; los dos evaluadores coinciden al milésimo.
   Informe: `evaluacion/informe_retrieval.json`.
-- **Pruebas**: 166 pruebas, 0 fallos con `TEST_DATABASE_URL` apuntando a la base del
-  compose (165 sin la de integración, que se saltea si la variable no está); `ruff check .`
+- **Pruebas**: 169 pruebas, 0 fallos con `TEST_DATABASE_URL` apuntando a la base del
+  compose (168 sin la de integración, que se saltea si la variable no está); `ruff check .`
   limpio.
 - **Punta a punta con el operador virtual**: 9 flujos (inspección normal, ambigüedad,
   unidades, corrección por voz, pico vs. desvío sostenido, S1–S4 incluyendo sin enlace,

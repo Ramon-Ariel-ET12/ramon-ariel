@@ -285,7 +285,7 @@ Todo el proceso, en el orden correcto y con la evidencia en `var/audit/verificac
 ## Resultados medidos
 
 - **Evaluación oficial (`martes-tranquilo` + `fuga-sin-enlace`): 91,3 / 100 · APRUEBA** en la
-  corrida del **2026-11-10 15:26** con artefactos en
+  corrida del **2026-11-10 17:39** (commit `b9fa0ff`) con artefactos en
   `academia2026-tp/correccion/corridas/academiaNovit2026/`, sin faltas eliminatorias.
   A1, A4a, A4b, B1, B2, E1–E3 y F1–F2 dan 100 %; A2 y A3 (69 %) dependen de la voz que
   elige el simulador y de que el operador virtual confirme borradores sin valores.
@@ -293,8 +293,8 @@ Todo el proceso, en el orden correcto y con la evidencia en `var/audit/verificac
 - Verificación independiente de esa corrida (recálculo propio sobre el registro MQTT y la
   verdad de campo): A1 13/13 notas con borrador, A3b 22/22 campos con TAG+valor+unidad
   correctos, A4a 3/3 ambiguas preguntadas, A4b 9/9 claras sin pregunta, B1 22/22
-  clasificaciones, **alerta S1 en 20,0 s reales** (aviso de emergencia en la tablet a los
-  17,8 s), 0 alertas falsas, 0 eventos duplicados y 0 mensajes inválidos. Comando:
+  clasificaciones, **alerta S1 en 20,4 s reales** (aviso de emergencia en la tablet a los
+  18,2 s), 0 alertas falsas, 0 eventos duplicados y 0 mensajes inválidos. Comando:
   `scripts/audit_escenario.py`.
 - RAG: hit@5 0,873 / recall@5 0,718 contra BM25 0,859 / 0,674; Rev. C antes que D: 0
   contra 6/71. La evaluación se corre con `corpus.evaluar.evaluar(buscar, suite)` del
@@ -306,8 +306,8 @@ Todo el proceso, en el orden correcto y con la evidencia en `var/audit/verificac
   (`workflow_call`) con lint, el contrato de despliegue y la suite completa contra un
   servicio `pgvector/pgvector:pg16`; `push.yml` lo invoca y `rag.yml` corre la evaluación
   de recuperación con umbral sobre la línea de base.
-- Pruebas: **166 pruebas, 0 fallos** con `TEST_DATABASE_URL` apuntando a la base del
-  compose (165 sin la de integración, que se saltea si la variable no está);
+- Pruebas: **169 pruebas, 0 fallos** con `TEST_DATABASE_URL` apuntando a la base del
+  compose (168 sin la de integración, que se saltea si la variable no está);
   `ruff check .` limpio.
 - Auditoría de la entrega y prueba de punta a punta:
   [`docs/DELIVERY_1_AUDIT.md`](docs/DELIVERY_1_AUDIT.md) y
