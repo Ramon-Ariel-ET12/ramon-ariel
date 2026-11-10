@@ -82,6 +82,13 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen
+      - name: Install the provided contract package
+        # planta_contrato is installed with pip from the published source, exactly as the
+        # Dockerfile does; it is not vendored in this repository. It must come AFTER
+        # uv sync, which removes packages that are not in the lock file.
+        run: |
+          git clone --depth 1 https://github.com/NovitSoftware/academia2026-tp.git /tmp/academia2026-tp
+          uv pip install --python .venv/bin/python /tmp/academia2026-tp/contrato
       - name: pytest
         env:
           # The integration test creates the schema itself (pgvector extension included).
