@@ -88,6 +88,8 @@ def main() -> None:
     parser.add_argument("--model", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     parser.add_argument("--sin-vectores", action="store_true", help="solo BM25 + metadatos")
     parser.add_argument("--salida", type=Path, default=HERE / "informe_retrieval.json")
+    parser.add_argument("--verificar", action="store_true",
+                        help="exit non-zero when the hybrid is below the documented BM25 baseline")
     args = parser.parse_args()
 
     suite, fragments = load()
@@ -130,6 +132,20 @@ def main() -> None:
     for kind, metrics in report["hibrido"]["por_tipo"].items():
         print(f"  {kind:14} n={metrics['n']:2}  " + "  ".join(f"{k}={v}" for k, v in metrics.items() if k != "n"))
     print(f"Informe: {args.salida}")
+
+    if args.verificar:
+        total = report["hibrido"]["total"]
+        fallas = []
+        if total["hit@5"] < 0.85:
+            fallas.append(f"hit@5 {total['hit@5']} < 0.85")
+        if total["recall@5"] < 0.66:
+            fallas.append(f"recall@5 {total['recall@5']} < 0.66")
+        if report["hibrido"]["rev_c_antes_que_d"] != 0:
+            fallas.append(f"Rev. C antes que D en {report['hibrido']['rev_c_antes_que_d']} preguntas")
+        if fallas:
+            print("FALLA la verificación de recuperación:", "; ".join(fallas))
+            raise SystemExit(1)
+        print("OK: recuperación por encima de la línea de base BM25 y sin trampas de versión")
 
 
 if __name__ == "__main__":

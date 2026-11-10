@@ -1,0 +1,65 @@
+name: RAG retrieval
+
+# Reusable workflow for the retrieval evaluation (71 questions).
+# Run it by hand from Actions -> "RAG retrieval" -> Run workflow, or call it:
+#   jobs:
+#     rag:
+#       uses: <owner>/<repo>/.github/workflows/rag.yml@main
+# It is not wired to push on purpose: it downloads the local embedding model and the
+# public plant corpus, so it is slower and depends on the network.
+on:
+  workflow_call:
+    inputs:
+      verificar:
+        description: Fail when hit@5/recall@5 fall below the BM25 baseline or Rev. C outranks Rev. D
+        type: boolean
+        required: false
+        default: true
+    outputs:
+      resultado:
+        description: Result of the retrieval job
+        value: ${{ jobs.retrieval.result }}
+  workflow_dispatch:
+    inputs:
+      verificar:
+        description: Fail below the baseline
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  retrieval:
+    name: corpus.evaluar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Fetch the course corpus (for corpus.evaluar.evaluar)
+        # The required evaluator lives in the public plant repository. When the clone
+        # fails the script falls back to its local copy and says so in the report.
+        continue-on-error: true
+        run: git clone --depth 1 https://github.com/NovitSoftware/academia2026-tp.git academia2026-tp
+      - name: Retrieval evaluation
+        env:
+          VERIFICAR: ${{ inputs.verificar && '--verificar' || '' }}
+        run: >
+          uv run python evaluacion/retrieval_eval.py
+          $VERIFICAR
+          --salida evaluacion/informe_retrieval.json
+      - name: Show the metrics
+        run: >
+          python3 -c "import json;d=json.load(open('evaluacion/informe_retrieval.json'));
+          print('evaluador:', d['evaluador']);
+          print('hibrido:', d['hibrido']['total']);
+          print('rev_c_antes_que_d:', d['hibrido']['rev_c_antes_que_d'])"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retrieval-report
+          path: evaluacion/informe_retrieval.json

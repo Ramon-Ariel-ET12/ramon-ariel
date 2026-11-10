@@ -1,0 +1,20 @@
+name: push
+
+# Thin caller: the actual jobs live in the reusable workflow .github/workflows/ci.yml.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+concurrency:
+  group: push-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    with:
+      run-tests: true

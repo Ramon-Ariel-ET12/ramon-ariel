@@ -1,0 +1,89 @@
+name: CI
+
+# Reusable workflow: call it from this repo (see push.yml) or from another one with
+#   jobs:
+#     ci:
+#       uses: <owner>/<repo>/.github/workflows/ci.yml@main
+#       with: {run-tests: true}
+# It only needs read access to the repository; there are no secrets.
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version for the test job (the project supports 3.11)
+        type: string
+        required: false
+        default: "3.11"
+      run-tests:
+        description: Run the full pytest suite, including the Postgres integration test
+        type: boolean
+        required: false
+        default: true
+    outputs:
+      tests:
+        description: Result of the pytest job
+        value: ${{ jobs.tests.result }}
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: Python version for the test job
+        type: string
+        default: "3.11"
+      run-tests:
+        description: Run the full pytest suite
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Lint and deployment contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: ruff
+        # Same version as uv.lock: a floating ruff could turn a green repo red overnight.
+        run: uvx ruff@0.17.4 check .
+      - name: Compose network, label and resource budget
+        # Verifies planta-lan, the academia.planta: pc label, the enlace proxy and
+        # CPU <= 4 / memory <= 8 GiB across every student-side service.
+        run: python3 scripts/check_compose_budget.py
+
+  tests:
+    name: pytest
+    if: ${{ inputs.run-tests }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: pia
+          POSTGRES_USER: pia
+          POSTGRES_PASSWORD: pia-local-dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pia -d pia"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: pytest
+        env:
+          # The integration test creates the schema itself (pgvector extension included).
+          TEST_DATABASE_URL: postgresql://pia:pia-local-dev@localhost:5432/pia
+        run: uv run pytest -q
