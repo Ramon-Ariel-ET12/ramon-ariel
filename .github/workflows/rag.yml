@@ -15,10 +15,6 @@ on:
         type: boolean
         required: false
         default: true
-    outputs:
-      resultado:
-        description: Result of the retrieval job
-        value: ${{ jobs.retrieval.result }}
   workflow_dispatch:
     inputs:
       verificar:
