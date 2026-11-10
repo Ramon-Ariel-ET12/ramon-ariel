@@ -20,7 +20,7 @@ found in the first pass. The detailed pre-remediation snapshot is
 | Metric | Value |
 |---|---|
 | Official correction (`martes-tranquilo` + `fuga-sin-enlace`, 2026-11-10 17:39, commit `b9fa0ff`) | **91,3 / 100 · APRUEBA**, `eliminatorias: {}` |
-| Requirement matrix (98 rows) | **PASS 84 · PARTIAL 12 · FAIL 0 · NOT VERIFIED 1 (B2a) · BLOCKED 1 (A1d)** |
+| Requirement matrix (98 rows) | **PASS 85 · PARTIAL 12 · FAIL 0 · NOT VERIFIED 1 (B2a) · BLOCKED 0** |
 | Tests | 166 passed, 0 failed with `TEST_DATABASE_URL` (165 + 1 integration) |
 | Lint | `ruff check .` clean |
 | RAG (`corpus.evaluar.evaluar`) | hit@5 **0,873** · recall@5 **0,718** · MRR 0,678 · distractor@5 **0** (BM25: 0,859 / 0,674 / 6 of 71) |
@@ -34,9 +34,11 @@ section when the question named it (F2b), manufacturer-code query expansion (F2c
 equipment/manufacturer metadata for order histories (F1b), manual sections in the
 escalated-event context (C3b/F6), strict tool contracts (D2) and VIVO tests (B8).
 
-Still open: **A1d** (publish the repository and push the commit), **B2a** (the closed
-model list is not published), and the three documented partials of the delivery
-(historical confirmation scope, `confirmed_with_differences`, `panel` on two networks).
+Still open: **B2a** (the closed model list is not published) and the documented
+partials of the delivery (historical confirmation scope, `confirmed_with_differences`,
+`panel` on two networks). **A1d is closed**: the public repo
+`https://github.com/Ramon-Ariel-ET12/ramon-ariel` was created and `master` holds the
+scored commit.
 
 ## 1. Method
 

@@ -18,7 +18,7 @@ del corrector y sin variables de entorno. Corridas anteriores: 88,8 / 89,2 / 82,
 | Requisitos auditados | 98 (matriz de la auditoría independiente) |
 | Implementados y verificados | 84 |
 | Parciales documentados | 12 |
-| No verificable / bloqueado | 2 (B2a: la lista cerrada no está publicada; A1d: no hay repo público) |
+| No verificable | 1 (B2a: la lista cerrada de modelos no está publicada) |
 | Pruebas | 169 pruebas, 0 fallos con `TEST_DATABASE_URL` (168 + 1 de integración) |
 | Lint | `ruff check .` limpio |
 | Build sin variables | `docker compose build` instala `planta-contrato 0.2.0` |

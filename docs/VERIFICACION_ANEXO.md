@@ -12,7 +12,7 @@ Método: lectura del anexo, inspección del árbol en `HEAD`, `docker compose co
 
 | # | Requisito | Estado | Evidencia |
 |---|---|---|---|
-| 1 | Repo público `nombre-apellido` con `README.md`, `docker-compose.yml` y `tests/` en la raíz | **NO** | `git remote -v` vacío: no hay repo público. Los tres archivos existen. Es el único bloqueante de la entrega. |
+| 1 | Repo público `nombre-apellido` con `README.md`, `docker-compose.yml` y `tests/` en la raíz | MET | `https://github.com/Ramon-Ariel-ET12/ramon-ariel`, público (lectura anónima 200 de `README.md`, `docker-compose.yml` y `tests/test_tools.py`), `master` en el commit entregado. |
 | 2 | `docker compose up` levanta el sistema al lado de la planta | MET | `docker compose config` (redes externas `planta-lan` y `planta-control`); `docker compose up -d` levanta `cerebro`, `db`, `panel` y `nube-sync` y el sistema queda `ready`. |
 | 3 | Servicios de planta solo en `planta-lan` y con `academia.planta: pc` | PARCIAL | Los tres servicios de planta (`cerebro`, `db`, `panel`) llevan el label. `cerebro` y `db` están **solo** en `planta-lan`; `panel` es el ingreso dual-homed (`planta-lan` + `planta-control`) porque `planta-lan` es `internal` y Docker no publica puertos de un contenedor que solo está ahí. Único servicio fuera de la PC de planta: `nube-sync` (sin label, en `planta-control`). `scripts/check_compose_budget.py` lo verifica sobre el compose resuelto. |
 | 4 | Suma de límites ≤ 4 CPU y 8 GB | MET | `deploy.resources.limits`: cerebro 3 CPU/6 GiB + db 0,5/1 GiB + panel 0,25/128 MiB = **3,75 CPU / 7,1 GiB**; con `nube-sync` 4,0 CPU / 7,4 GiB. |
@@ -81,12 +81,10 @@ Método: lectura del anexo, inspección del árbol en `HEAD`, `docker compose co
 
 ## Resumen
 
-- **MET: 33** · **PARCIAL: 2** (`panel` dual-homed, lista cerrada de modelos no
-  publicada) · **NO: 1** (repo público). El conjunto etiquetado es `cerebro` + `db` +
-  `panel`; el único servicio fuera de la PC de planta es `nube-sync`; el dual-homing del
-  `panel` es la desviación documentada, con su motivo.
-- El único bloqueante real es el **repo público** (requisito 1): no hay remoto y el commit
-  está solo local. No depende del código.
-- Los otros dos parciales están acotados y documentados: el `panel` es el ingreso sin
-  estado que exige que `planta-lan` sea `internal`, y la lista cerrada es información que
-  la cátedra no publicó.
+- **MET: 34** · **PARCIAL: 2** (`panel` dual-homed, lista cerrada de modelos no
+  publicada). El conjunto etiquetado es `cerebro` + `db` + `panel`; el único servicio
+  fuera de la PC de planta es `nube-sync`; el dual-homing del `panel` es la desviación
+  documentada, con su motivo.
+- No queda ningún requisito sin cumplir. Los dos parciales están acotados y documentados:
+  el `panel` es el ingreso dual-homed que exige que `planta-lan` sea `internal`, y la
+  lista cerrada de modelos es información que la cátedra no publicó.
