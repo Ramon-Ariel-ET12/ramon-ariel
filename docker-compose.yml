@@ -68,14 +68,16 @@ services:
           memory: 1g
     restart: unless-stopped
 
-  # Control-network ingress for the UI. It is not a plant service: no plant label, no
-  # state, every request proxied to cerebro. planta-lan is `internal`, so Docker cannot
-  # publish a port from a container that is only on it; this nginx is the single hop
-  # that makes the UI reachable from the control network. The plant services are
-  # `cerebro` and `db`, both only on planta-lan.
+  # Control-network ingress for the UI. It is a plant service (it runs on the plant PC
+  # and carries the label) and the single documented deviation from "only on
+  # planta-lan": planta-lan is `internal`, so Docker cannot publish a port from a
+  # container that is only on it. It holds no state and proxies every request to
+  # cerebro, which (like `db`) does stay only on planta-lan.
   panel:
     image: nginx:1.27-alpine
     networks: [planta-lan, control]
+    labels:
+      academia.planta: pc
     environment:
       HTTP_PROXY: http://enlace:3128
       HTTPS_PROXY: http://enlace:3128
