@@ -367,15 +367,26 @@ verdict above, which records the state the audit measured.
 | P2-7 | README, INFORME, RESULTADOS and IMPLEMENTATION_STATUS now report the archived run (88.8), the 24.0 s alert and the dev-mode field accuracy | documents |
 | P3-1 | `docs/SPEC_PARTE.md` aligned with the code (observed range, 40/20 s waits, enforced budgets, `unreadable` status) | document |
 
-Suite after the changes: **143 passed, 0 failed, 0 skipped** (with the live Postgres),
-`ruff check .` clean, RAG `hit@5 0.873 / recall@5 0.718 / distractor@5 0`.
+Suite after the changes: **143 passed** at that point. On the final tree (`34e1120`) the
+same suite runs **169 passed, 0 failed, 0 skipped** with the live Postgres, `ruff check .`
+is clean, and both CI workflows are green.
 
-Still open, and deliberately not touched:
+### Resolved on the final tree (`34e1120`; official run on `b9fa0ff`)
 
-- **A1d**: publish the repository to GitHub and add the remote (needs credentials).
-- **Official re-run**: `corregir.py --escenarios martes-tranquilo fuga-sin-enlace` must be
-  executed on the pushed commit with the development stack stopped (ports 8200/8300).
-  The 88.8 figure belongs to the previous code; the parser fix should move A2/A4a, but
-  that must be measured, not assumed.
+- **A1d closed**: published at <https://github.com/Ramon-Ariel-ET12/ramon-ariel> (public,
+  `master`, anonymous reads 200 for `README.md`, `docker-compose.yml` and `tests/`).
+- **Official re-run done**: 91.3/100, `aprueba: true`, `eliminatorias {}` on
+  `martes-tranquilo` + `fuga-sin-enlace`; the archived run and the documents agree.
+- **E1b-c**: `MAX_NOTE_STEPS` and `TOKEN_BUDGET` are enforced
+  (`app/processing/workflow.py:321,335`) and covered by tests.
+- **F3b**: `corpus.evaluar.evaluar` is the evaluator, and the `RAG retrieval` workflow runs
+  it in CI (hit@5 0.873 / recall@5 0.718 / distractor 0).
+- **P2-7**: docs report the archived run's score, not an earlier one.
+
+Still open, and not closable from this repository:
+
 - **B2a**: conformance with the closed model list cannot be verified until the course
-  publishes it.
+  publishes the list.
+- **A2b**: `panel` is dual-homed (`planta-lan` + `planta-control`) and carries the label;
+  the single deviation from "solo `planta-lan`" is documented in the README and in
+  `docs/VERIFICACION_ANEXO.md` item 3.

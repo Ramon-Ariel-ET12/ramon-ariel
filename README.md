@@ -34,8 +34,8 @@ planta-lan (interna, sin internet)                         planta-control (inter
   `academia.planta: pc`; 3,75 CPU / 7,13 GiB entre los tres)**: `cerebro` y `db` corren
   **solo** en `planta-lan`; `panel` es el ingreso dual-homed documentado
   (`planta-lan` + `planta-control`), porque Docker no publica puertos de un contenedor
-  que está solo en una red `internal`:
-  recepción MQTT, descarga de audio y fotos, transcripción local, detección de
+  que está solo en una red `internal`.
+  El `cerebro` hace: recepción MQTT, descarga de audio y fotos, transcripción local, detección de
   condición insegura, extracción del parte, diálogo con la tablet, eventos, reglas de
   aprobación, órdenes, herramientas locales, índice y búsqueda de manuales, memoria.
   Nada de esto necesita internet: el enlace puede estar caído y la planta sigue
