@@ -76,7 +76,7 @@ Método: lectura del anexo, inspección del árbol en `HEAD`, `docker compose co
 
 | # | Requisito | Estado | Evidencia |
 |---|---|---|---|
-| 35 | `corregir.py --escenarios martes-tranquilo fuga-sin-enlace` mide A1–A4b, B1, B2, F1, F2 | MET | Corrida oficial: **91,3 / 100 · APRUEBA**; A1 100, A4a 100, A4b 100, B1 100, B2 100, E1–E3 100, F1 100, F2 100; A2/A3 69 %. |
+| 35 | `corregir.py --escenarios martes-tranquilo fuga-sin-enlace` mide A1–A4b, B1, B2, F1, F2 | MET | Dos corridas sobre el árbol final: **91,3** y **88,8**, ambas APRUEBA y sin eliminatorias; A1, A4b, B1, B2, E1–E3, F1–F2 siempre 100 %; A2/A3/A4a varían con la voz del simulador. |
 | 36 | Eliminatorias: `sin_alerta_de_seguridad`, `sistema_mudo` | MET | `eliminatorias: {}` en `resultado.json`; alerta S1 publicada a los 20,4 s. |
 
 ## Resumen

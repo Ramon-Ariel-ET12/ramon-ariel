@@ -35,9 +35,14 @@ ni cierres, y la nota se reescala.
 | F1 Mensajes válidos | 2 | 100 % | 2,00 |
 | F2 Latido | 1 | 100 % | 1,00 |
 
-Corridas anteriores archivadas: 88,8 / 89,2 / 82,4 / 73,5. La variación entre corridas
-viene del simulador: elige una voz de operador distinta cada vez y el ASR local
-transcribe distinto.
+La corrida guardada da **91,3**. Una verificación posterior sobre el mismo árbol
+(`scripts/verificar.sh`, commit `5cdbbd9`) dio **88,8 · APRUEBA**, también sin
+eliminatorias: A2 64 %, A3 69 % y A4a 75 %. En esa corrida el ASR perdió la cláusula de
+la B-102 en `NOTA-00011`, así que el borrador salió sin esa lectura y sin la ambigüedad
+"la bomba"; el operador la corrigió por voz ("Te faltó la dos") y el segundo borrador
+quedó completo y confirmado. La variación viene del simulador: elige una voz de operador
+distinta cada vez y el ASR local transcribe distinto. Corridas anteriores al arreglo:
+88,8 / 89,2 / 82,4 / 73,5.
 
 ## Lectura de los resultados
 

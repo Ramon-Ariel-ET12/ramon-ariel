@@ -114,6 +114,18 @@ if [ "$E2E" -eq 1 ]; then
     resultado "end-to-end" "${PIPESTATUS[0]}"
 fi
 
+if [ -f "$CORRIDA/resultado.json" ]; then
+    paso "Resultado de la corrección"
+    uv run python - "$CORRIDA/resultado.json" <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print(f"   nota {r['nota']:.1f} · {'APRUEBA' if r['aprueba'] else 'NO APRUEBA'} · "
+      f"eliminatorias {r['eliminatorias'] or '{}'}")
+sys.exit(0 if r["aprueba"] and not r["eliminatorias"] else 1)
+PY
+    resultado "criterio de aprobación" "$?"
+fi
+
 if [ "$CERRAR" -eq 1 ]; then
     paso "Cerrando contenedores"
     "$ROOT/scripts/parar.sh"

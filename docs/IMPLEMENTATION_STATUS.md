@@ -7,7 +7,8 @@ virtual está en [`END_TO_END_TEST_REPORT.md`](END_TO_END_TEST_REPORT.md).
 
 ## Resultado
 
-**91,3 / 100 · APRUEBA** en la corrida oficial del **2026-11-10 17:39** (commit `b9fa0ff`), archivada en la
+**91,3 / 100 · APRUEBA** en la corrida oficial del **2026-11-10 17:39** (commit `b9fa0ff`) y **88,8 ·
+APRUEBA** en la verificación posterior sobre `5cdbbd9`, ambas sin eliminatorias; la primera queda archivada en la
 carpeta de corridas del corrector (`academia2026-tp/correccion/corridas/academiaNovit2026/`),
 sin faltas eliminatorias, en `martes-tranquilo` y `fuga-sin-enlace`, con el comando canónico
 del corrector y sin variables de entorno. Corridas anteriores: 88,8 / 89,2 / 82,4 / 73,5. Detalle:

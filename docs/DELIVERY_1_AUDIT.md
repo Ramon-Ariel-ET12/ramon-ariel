@@ -20,6 +20,7 @@ found in the first pass. The detailed pre-remediation snapshot is
 | Metric | Value |
 |---|---|
 | Official correction (`martes-tranquilo` + `fuga-sin-enlace`, 2026-11-10 17:39, commit `b9fa0ff`) | **91,3 / 100 · APRUEBA**, `eliminatorias: {}` |
+| Second official run on the same tree (`5cdbbd9`, via `scripts/verificar.sh`) | **88,8 / 100 · APRUEBA**, `eliminatorias: {}` (A2 64, A3 69, A4a 75: ASR dropped a B-102 clause, the operator corrected it by voice) |
 | Requirement matrix (98 rows) | **PASS 85 · PARTIAL 12 · FAIL 0 · NOT VERIFIED 1 (B2a) · BLOCKED 0** |
 | Tests | 166 passed, 0 failed with `TEST_DATABASE_URL` (165 + 1 integration) |
 | Lint | `ruff check .` clean |

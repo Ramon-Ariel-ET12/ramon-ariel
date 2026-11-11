@@ -289,7 +289,9 @@ Todo el proceso, en el orden correcto y con la evidencia en `var/audit/verificac
   `academia2026-tp/correccion/corridas/academiaNovit2026/`, sin faltas eliminatorias.
   A1, A4a, A4b, B1, B2, E1–E3 y F1–F2 dan 100 %; A2 y A3 (69 %) dependen de la voz que
   elige el simulador y de que el operador virtual confirme borradores sin valores.
-  Detalle: [`docs/RESULTADOS.md`](docs/RESULTADOS.md).
+  Una verificación posterior sobre el mismo árbol dio **88,8 · APRUEBA** (sin eliminatorias): A2 64 %,
+  A3 69 % y A4a 75 %, porque en esa corrida el ASR perdió una cláusula y el operador la corrigió por
+  voz. Detalle: [`docs/RESULTADOS.md`](docs/RESULTADOS.md).
 - Verificación independiente de esa corrida (recálculo propio sobre el registro MQTT y la
   verdad de campo): A1 13/13 notas con borrador, A3b 22/22 campos con TAG+valor+unidad
   correctos, A4a 3/3 ambiguas preguntadas, A4b 9/9 claras sin pregunta, B1 22/22
