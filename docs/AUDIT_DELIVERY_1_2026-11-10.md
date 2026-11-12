@@ -373,7 +373,7 @@ is clean, and both CI workflows are green.
 
 ### Resolved on the final tree (`34e1120`; official run on `b9fa0ff`)
 
-- **A1d closed**: published at <https://github.com/Ramon-Ariel-ET12/ramon-ariel> (public,
+- **A1d closed**: published at <https://github.com/Ramon-Ariel-ET12/ramon-lugones-academiaNovit2026> (public,
   `master`, anonymous reads 200 for `README.md`, `docker-compose.yml` and `tests/`).
 - **Official re-run done**: 91.3/100, `aprueba: true`, `eliminatorias {}` on
   `martes-tranquilo` + `fuga-sin-enlace`; the archived run and the documents agree.

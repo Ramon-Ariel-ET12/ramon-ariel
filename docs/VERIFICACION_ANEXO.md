@@ -12,7 +12,7 @@ Método: lectura del anexo, inspección del árbol en `HEAD`, `docker compose co
 
 | # | Requisito | Estado | Evidencia |
 |---|---|---|---|
-| 1 | Repo público `nombre-apellido` con `README.md`, `docker-compose.yml` y `tests/` en la raíz | MET | `https://github.com/Ramon-Ariel-ET12/ramon-ariel`, público (lectura anónima 200 de `README.md`, `docker-compose.yml` y `tests/test_tools.py`), `master` en el commit entregado. |
+| 1 | Repo público `nombre-apellido` con `README.md`, `docker-compose.yml` y `tests/` en la raíz | MET | `https://github.com/Ramon-Ariel-ET12/ramon-lugones-academiaNovit2026` (renombrado desde `ramon-ariel`), público (lectura anónima 200 de `README.md`, `docker-compose.yml` y `tests/test_tools.py`), `master` en el commit entregado. |
 | 2 | `docker compose up` levanta el sistema al lado de la planta | MET | `docker compose config` (redes externas `planta-lan` y `planta-control`); `docker compose up -d` levanta `cerebro`, `db`, `panel` y `nube-sync` y el sistema queda `ready`. |
 | 3 | Servicios de planta solo en `planta-lan` y con `academia.planta: pc` | PARCIAL | Los tres servicios de planta (`cerebro`, `db`, `panel`) llevan el label. `cerebro` y `db` están **solo** en `planta-lan`; `panel` es el ingreso dual-homed (`planta-lan` + `planta-control`) porque `planta-lan` es `internal` y Docker no publica puertos de un contenedor que solo está ahí. Único servicio fuera de la PC de planta: `nube-sync` (sin label, en `planta-control`). `scripts/check_compose_budget.py` lo verifica sobre el compose resuelto. |
 | 4 | Suma de límites ≤ 4 CPU y 8 GB | MET | `deploy.resources.limits`: cerebro 3 CPU/6 GiB + db 0,5/1 GiB + panel 0,25/128 MiB = **3,75 CPU / 7,1 GiB**; con `nube-sync` 4,0 CPU / 7,4 GiB. |

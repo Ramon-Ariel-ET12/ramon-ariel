@@ -38,7 +38,7 @@ escalated-event context (C3b/F6), strict tool contracts (D2) and VIVO tests (B8)
 Still open: **B2a** (the closed model list is not published) and the documented
 partials of the delivery (historical confirmation scope, `confirmed_with_differences`,
 `panel` on two networks). **A1d is closed**: the public repo
-`https://github.com/Ramon-Ariel-ET12/ramon-ariel` was created and `master` holds the
+`https://github.com/Ramon-Ariel-ET12/ramon-lugones-academiaNovit2026` was created and `master` holds the
 scored commit.
 
 ## 1. Method
